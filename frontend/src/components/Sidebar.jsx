@@ -5,6 +5,7 @@ const links = [
   { to: '/transactions', label: 'Transactions',   icon: '⇄',  desc: 'Money flow' },
   { to: '/accounts',     label: 'Accounts',       icon: '◈',  desc: 'Your wallets' },
   { to: '/analytics',    label: 'Analytics',      icon: '◉',  desc: 'Insights' },
+  { to: '/convert',      label: 'Convert',        icon: '⇌',  desc: 'BDT ↔ USD' },
   { to: '/deleted',      label: 'Deleted',        icon: '○',  desc: 'Soft deleted' },
   { to: '/discord',      label: 'Discord Schema', icon: '◇',  desc: 'Event helper' },
 ]

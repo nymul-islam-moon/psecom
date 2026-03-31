@@ -26,9 +26,25 @@ A personal finance tracker built on an **event-sourced architecture** — Discor
 - **Overspend protection** — the system rejects an expense if the account does not have sufficient balance
 - Opening balance support — use an `income` transaction with category `Opening Balance`
 
+### Multi-Currency Support
+- BDT (Taka ৳) and USD ($) are fully supported with correct symbols
+- Dashboard totals are grouped **per currency** — BDT and USD shown separately so numbers are never mixed
+- All amounts display with the correct currency symbol dynamically
+
+### Currency Conversion
+- Dedicated **Convert** page to convert BDT ↔ USD
+- Enter amount, exchange rate, and optional conversion charge
+- Live **preview** shows: amount sent, charge, total deducted, amount received
+- Overspend protection — conversion is blocked if balance is insufficient
+- Conversion records **3 transactions** automatically:
+  1. Expense on source account (amount)
+  2. Income on destination account (converted amount)
+  3. Expense on source account (charge, if any)
+- All 3 are posted to Discord and survive sync
+
 ### Dashboard
-- Summary cards: total income, total expenses, net balance
-- Area chart of the last 14 days of cash flow
+- Summary cards grouped by currency (separate BDT and USD rows)
+- Area chart of the last 14 days of cash flow (BDT)
 - Recent transactions table
 - Account list with quick navigation
 

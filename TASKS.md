@@ -62,3 +62,10 @@ This file tracks every task ever requested. Checked = done & committed. Unchecke
 - Every fix/feature → new branch off develop → commit → merge → delete branch
 - Always show toast on success/error
 - Discord is source of truth — all app actions must post to Discord
+
+## Phase 7 — Multi-Currency & Conversion
+- [x] Dashboard: per-currency totals (BDT and USD shown separately)
+- [x] Currency conversion page (BDT ↔ USD) with live preview
+- [x] Conversion charge support — fee recorded as separate expense transaction
+- [x] Overspend check on conversion (total deduct = amount + charge must fit balance)
+- [x] Dynamic currency symbol: ৳ for BDT, $ for USD
