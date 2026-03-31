@@ -3,19 +3,23 @@ import { getAccounts, postEvent } from '../services/api'
 import { formatDate } from '../utils/format'
 import { generateId } from '../utils/uuid'
 import Modal from '../components/Modal'
+import Toast from '../components/Toast'
 
 const EMPTY_FORM = { name: '', type: 'cash', currency: 'USD', parent_id: '' }
 
 export default function Accounts() {
   const [accounts, setAccounts] = useState([])
-  const [modal, setModal] = useState(null) // null | 'create' | 'edit'
+  const [modal, setModal] = useState(null)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [toast, setToast] = useState(null)
 
   const load = () => getAccounts().then(r => setAccounts(r.data))
   useEffect(() => { load() }, [])
+
+  const showToast = (message, type = 'success') => setToast({ message, type })
 
   const openCreate = () => {
     setForm(EMPTY_FORM)
@@ -37,14 +41,14 @@ export default function Accounts() {
     setError('')
     try {
       if (modal === 'create') {
-        const id = generateId()
         await postEvent({
           event_id: generateId(),
           action: 'insert',
           entity: 'account',
           source: 'app',
-          data: { id, name: form.name, type: form.type, currency: form.currency, parent_id: form.parent_id || null },
+          data: { id: generateId(), name: form.name, type: form.type, currency: form.currency, parent_id: form.parent_id || null },
         })
+        showToast(`Account "${form.name}" created successfully!`)
       } else {
         await postEvent({
           event_id: generateId(),
@@ -54,11 +58,14 @@ export default function Accounts() {
           source: 'app',
           data: { name: form.name, type: form.type, currency: form.currency, parent_id: form.parent_id || null },
         })
+        showToast(`Account "${form.name}" updated successfully!`)
       }
       setModal(null)
       load()
     } catch (e) {
-      setError(e.response?.data?.detail || 'Something went wrong.')
+      const msg = e.response?.data?.detail || 'Something went wrong.'
+      setError(msg)
+      showToast(msg, 'error')
     } finally {
       setSaving(false)
     }
@@ -75,9 +82,10 @@ export default function Accounts() {
         source: 'app',
         data: {},
       })
+      showToast(`Account "${account.name}" deleted.`)
       load()
     } catch (e) {
-      alert('Delete failed: ' + (e.response?.data?.detail || e.message))
+      showToast(e.response?.data?.detail || 'Delete failed.', 'error')
     }
   }
 
@@ -100,7 +108,7 @@ export default function Accounts() {
             </div>
             {a.parent_id && (
               <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 4 }}>
-                Sub-account of: <span style={{ color: '#e2e8f0', fontFamily: 'monospace', fontSize: 11 }}>{accounts.find(x => x.id === a.parent_id)?.name || a.parent_id}</span>
+                Sub-account of: <span style={{ color: '#e2e8f0', fontSize: 11 }}>{accounts.find(x => x.id === a.parent_id)?.name || a.parent_id}</span>
               </div>
             )}
             <div style={{ color: '#64748b', fontSize: 12, marginBottom: 14 }}>Created {formatDate(a.created_at)}</div>
@@ -146,11 +154,15 @@ export default function Accounts() {
             {error && <div style={{ color: '#fca5a5', fontSize: 13 }}>{error}</div>}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
               <button className="btn-ghost" onClick={() => setModal(null)}>Cancel</button>
-              <button className="btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+              <button className="btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
             </div>
           </div>
         </Modal>
       )}
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
 }

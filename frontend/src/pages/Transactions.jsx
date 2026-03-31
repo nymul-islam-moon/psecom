@@ -3,25 +3,25 @@ import { getTransactions, getAccounts, postEvent } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/format'
 import { generateId } from '../utils/uuid'
 import Modal from '../components/Modal'
+import Toast from '../components/Toast'
 
 const EMPTY_FORM = {
-  type: 'expense',
-  amount: '',
-  currency: 'USD',
-  account_id: '',
-  category: '',
-  note: '',
+  type: 'expense', amount: '', currency: 'USD',
+  account_id: '', category: '', note: '',
 }
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([])
   const [accounts, setAccounts] = useState([])
   const [filter, setFilter] = useState({ type: '', category: '' })
-  const [modal, setModal] = useState(null) // null | 'create' | 'edit'
-  const [editing, setEditing] = useState(null) // transaction being edited
+  const [modal, setModal] = useState(null)
+  const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [toast, setToast] = useState(null)
+
+  const showToast = (message, type = 'success') => setToast({ message, type })
 
   const load = () => {
     const params = {}
@@ -42,12 +42,8 @@ export default function Transactions() {
 
   const openEdit = (txn) => {
     setForm({
-      type: txn.type,
-      amount: txn.amount,
-      currency: txn.currency,
-      account_id: txn.account_id,
-      category: txn.category || '',
-      note: txn.note || '',
+      type: txn.type, amount: txn.amount, currency: txn.currency,
+      account_id: txn.account_id, category: txn.category || '', note: txn.note || '',
     })
     setEditing(txn)
     setError('')
@@ -63,14 +59,14 @@ export default function Transactions() {
     setError('')
     try {
       if (modal === 'create') {
-        const id = generateId()
         await postEvent({
           event_id: generateId(),
           action: 'insert',
           entity: 'transaction',
           source: 'app',
-          data: { id, ...form, amount: parseFloat(form.amount) },
+          data: { id: generateId(), ...form, amount: parseFloat(form.amount) },
         })
+        showToast('Transaction created successfully!')
       } else {
         await postEvent({
           event_id: generateId(),
@@ -80,18 +76,21 @@ export default function Transactions() {
           source: 'app',
           data: { ...form, amount: parseFloat(form.amount) },
         })
+        showToast('Transaction updated successfully!')
       }
       setModal(null)
       load()
     } catch (e) {
-      setError(e.response?.data?.detail || 'Something went wrong.')
+      const msg = e.response?.data?.detail || 'Something went wrong.'
+      setError(msg)
+      showToast(msg, 'error')
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (txn) => {
-    if (!confirm(`Soft-delete "${txn.note || txn.id}"? It will move to Deleted records.`)) return
+    if (!confirm(`Delete "${txn.note || txn.id}"? It moves to Deleted records and can be restored.`)) return
     try {
       await postEvent({
         event_id: generateId(),
@@ -101,9 +100,10 @@ export default function Transactions() {
         source: 'app',
         data: {},
       })
+      showToast('Transaction deleted (can be restored from Deleted page).')
       load()
     } catch (e) {
-      alert('Delete failed: ' + (e.response?.data?.detail || e.message))
+      showToast(e.response?.data?.detail || 'Delete failed.', 'error')
     }
   }
 
@@ -195,11 +195,15 @@ export default function Transactions() {
             {error && <div style={{ color: '#fca5a5', fontSize: 13 }}>{error}</div>}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
               <button className="btn-ghost" onClick={() => setModal(null)}>Cancel</button>
-              <button className="btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+              <button className="btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
             </div>
           </div>
         </Modal>
       )}
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
 }

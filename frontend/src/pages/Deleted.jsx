@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { getDeletedTransactions, postEvent } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/format'
 import { generateId } from '../utils/uuid'
+import Toast from '../components/Toast'
 
 export default function Deleted() {
   const [transactions, setTransactions] = useState([])
+  const [toast, setToast] = useState(null)
 
   const load = () => getDeletedTransactions().then(r => setTransactions(r.data))
   useEffect(() => { load() }, [])
@@ -12,8 +14,6 @@ export default function Deleted() {
   const handleRestore = async (txn) => {
     if (!confirm(`Restore "${txn.note || txn.id}"? It will appear back in active transactions.`)) return
     try {
-      // Restore = update with deleted_at cleared via a special update
-      // We re-insert using original data, the engine will update deleted_at to null
       await postEvent({
         event_id: generateId(),
         action: 'update',
@@ -22,9 +22,10 @@ export default function Deleted() {
         source: 'app',
         data: { restore: true },
       })
+      setToast({ message: `"${txn.note || txn.id}" restored successfully!`, type: 'success' })
       load()
     } catch (e) {
-      alert('Restore failed: ' + (e.response?.data?.detail || e.message))
+      setToast({ message: e.response?.data?.detail || 'Restore failed.', type: 'error' })
     }
   }
 
@@ -32,7 +33,7 @@ export default function Deleted() {
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Deleted Records</h1>
       <p style={{ color: '#64748b', marginBottom: 24, fontSize: 14 }}>
-        Soft-deleted transactions. Data is preserved in the events log — nothing is ever permanently lost. You can restore any record.
+        Soft-deleted transactions. Nothing is ever permanently lost — restore any record at any time.
       </p>
 
       <div className="card">
@@ -61,6 +62,8 @@ export default function Deleted() {
           </tbody>
         </table>
       </div>
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
 }
