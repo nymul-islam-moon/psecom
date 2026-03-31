@@ -108,6 +108,17 @@ export default function DiscordSchema() {
     setCopied(false)
   }
 
+  const refreshIds = () => {
+    if (!json || jsonError) return
+    try {
+      const obj = JSON.parse(json)
+      obj.event_id = generateId()
+      if (obj.data?.id) obj.data.id = generateId()
+      setJson(JSON.stringify(obj, null, 2))
+      setCopied(false)
+    } catch {}
+  }
+
   const handleEdit = (val) => {
     setJson(val)
     setCopied(false)
@@ -117,7 +128,6 @@ export default function DiscordSchema() {
 
   const handleCopy = () => {
     if (jsonError) return
-    // Collapse to single line for Discord
     try {
       const compact = JSON.stringify(JSON.parse(json))
       navigator.clipboard.writeText(compact)
@@ -160,10 +170,15 @@ export default function DiscordSchema() {
 
         {/* Editor */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button className="btn-primary" onClick={generate}>Generate JSON</button>
+            {json && !jsonError && (
+              <button className="btn-ghost" onClick={refreshIds} title="Generate new event_id and data.id, keep your values">
+                🔄 New IDs
+              </button>
+            )}
             <button
-              className={copied ? 'btn-ghost' : 'btn-ghost'}
+              className="btn-ghost"
               onClick={handleCopy}
               disabled={!json || !!jsonError}
               style={{ background: copied ? '#14532d' : undefined, color: copied ? '#86efac' : undefined }}
