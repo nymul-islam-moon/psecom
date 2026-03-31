@@ -1,7 +1,15 @@
 import { format } from 'date-fns'
 
-export const formatCurrency = (amount, currency = 'USD') =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+const CURRENCY_SYMBOLS = {
+  BDT: '৳',
+  USD: '$',
+}
+
+export const formatCurrency = (amount, currency = 'BDT') => {
+  const num = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+  const symbol = CURRENCY_SYMBOLS[currency?.toUpperCase()] ?? currency
+  return `${symbol}${num}`
+}
 
 export const formatDate = (dateStr) =>
   format(new Date(dateStr), 'MMM d, yyyy HH:mm')
