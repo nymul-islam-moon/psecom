@@ -18,6 +18,23 @@ Personal finance tracker using **event-sourced architecture**:
 - Database: MySQL 8.0
 - Infra: Docker, Docker Compose
 
+## Git Flow — ALWAYS follow this
+
+Branches: `main` (production) → `develop` (integration) → `feature/*` / `fix/*`
+
+**Every single change, no matter how small:**
+```bash
+git checkout develop
+git checkout -b fix/issue-name        # or feature/feature-name
+# make changes, test
+git add -A && git commit -m "fix: description"
+git checkout develop
+git merge --no-ff fix/issue-name
+git branch -d fix/issue-name
+```
+
+Never commit directly to `main` or `develop`.
+
 ## Commands
 
 ### Start everything (from project root)
