@@ -6,6 +6,7 @@ const links = [
   { to: '/accounts', label: 'Accounts', icon: '🏦' },
   { to: '/analytics', label: 'Analytics', icon: '📈' },
   { to: '/deleted', label: 'Deleted', icon: '🗑️' },
+  { to: '/discord', label: 'Discord Schema', icon: '🤖' },
 ]
 
 export default function Sidebar() {

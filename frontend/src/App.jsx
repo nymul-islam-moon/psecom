@@ -5,6 +5,7 @@ import Transactions from './pages/Transactions'
 import Accounts from './pages/Accounts'
 import Analytics from './pages/Analytics'
 import Deleted from './pages/Deleted'
+import DiscordSchema from './pages/DiscordSchema'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/deleted" element={<Deleted />} />
+          <Route path="/discord" element={<DiscordSchema />} />
         </Routes>
       </main>
     </div>

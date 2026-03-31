@@ -67,9 +67,16 @@ async def _handle_transaction(payload: EventPayload, db: AsyncSession):
     elif payload.action == "update":
         txn = await db.get(Transaction, payload.target_id)
         if txn:
-            for field in ("type", "amount", "currency", "account_id", "category", "note"):
-                if field in data:
-                    setattr(txn, field, data[field])
+            # Special restore flag: clear deleted_at
+            if data.get("restore"):
+                txn.deleted_at = None
+            else:
+                for field in (
+                    "type", "amount", "currency",
+                    "account_id", "category", "note"
+                ):
+                    if field in data:
+                        setattr(txn, field, data[field])
             txn.updated_at = datetime.utcnow()
 
     elif payload.action == "delete":
