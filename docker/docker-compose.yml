@@ -27,16 +27,14 @@ services:
     restart: unless-stopped
     ports:
       - "8100:8100"
+    env_file:
+      - ../.env
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: personal_economy
       DB_USER: root
-      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
-      DISCORD_TOKEN: ${DISCORD_TOKEN:-}
-      DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID:-0}
-    env_file:
-      - ../.env
+      DB_PASSWORD: rootpassword
     depends_on:
       mysql:
         condition: service_healthy
