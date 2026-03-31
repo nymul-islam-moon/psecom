@@ -10,7 +10,8 @@ from app.schemas.event import EventPayload, EventResponse
 router = APIRouter(prefix="/events", tags=["events"])
 
 
-@router.post("/", response_model=EventResponse)
+@router.post("", response_model=EventResponse)
+@router.post("/", response_model=EventResponse, include_in_schema=False)
 async def create_event(payload: EventPayload, db: AsyncSession = Depends(get_db)):
     try:
         event = await process_event(payload, db)

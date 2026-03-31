@@ -14,10 +14,10 @@ services:
       - mysql_data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-rootpassword}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   backend:
     build:
@@ -35,11 +35,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
       DISCORD_TOKEN: ${DISCORD_TOKEN:-}
       DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID:-0}
+    env_file:
+      - ../.env
     depends_on:
       mysql:
         condition: service_healthy
-    volumes:
-      - ../backend/app:/app/app
 
   frontend:
     build:

@@ -1,13 +1,13 @@
 """
 Sync Engine: fetches all messages from the Discord finance channel,
 sorts them chronologically, and replays events to rebuild the database.
+If Discord credentials are not configured, sync is silently skipped.
 """
 import json
 import logging
-from datetime import datetime
+import asyncio
 
 import discord
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
@@ -19,11 +19,15 @@ logger = logging.getLogger(__name__)
 
 async def sync_from_discord():
     """
-    Called on application startup. Reads all messages from the Discord channel
-    and replays them in order to reconstruct the database state.
+    Reads all messages from the Discord finance channel and replays
+    them in chronological order to reconstruct the database state.
+    Safely skips if DISCORD_TOKEN or DISCORD_CHANNEL_ID is not set.
     """
-    if not settings.DISCORD_TOKEN or not settings.DISCORD_CHANNEL_ID:
-        logger.warning("Discord credentials not set — skipping startup sync.")
+    if not settings.DISCORD_TOKEN or settings.DISCORD_CHANNEL_ID == 0:
+        logger.warning(
+            "Discord credentials not configured — skipping startup sync. "
+            "Set DISCORD_TOKEN and DISCORD_CHANNEL_ID in .env to enable."
+        )
         return
 
     intents = discord.Intents.default()
@@ -37,9 +41,13 @@ async def sync_from_discord():
         try:
             channel = client.get_channel(settings.DISCORD_CHANNEL_ID)
             if channel is None:
-                channel = await client.fetch_channel(settings.DISCORD_CHANNEL_ID)
+                channel = await client.fetch_channel(
+                    settings.DISCORD_CHANNEL_ID
+                )
 
-            async for message in channel.history(limit=None, oldest_first=True):
+            async for message in channel.history(
+                limit=None, oldest_first=True
+            ):
                 if message.author.bot:
                     continue
                 try:
@@ -48,12 +56,23 @@ async def sync_from_discord():
                 except (json.JSONDecodeError, KeyError):
                     pass  # Skip non-JSON messages
 
+        except Exception as e:
+            logger.error(f"Discord sync fetch error: {e}")
         finally:
             await client.close()
 
-    await client.start(settings.DISCORD_TOKEN)
+    try:
+        await asyncio.wait_for(
+            client.start(settings.DISCORD_TOKEN), timeout=60
+        )
+    except asyncio.TimeoutError:
+        logger.error("Discord sync timed out after 60s")
+        return
+    except Exception as e:
+        logger.error(f"Discord client error: {e}")
+        return
 
-    # Sort by creation time (should already be ordered, but be safe)
+    # Sort by creation time
     messages.sort(key=lambda m: m[0])
 
     async with AsyncSessionLocal() as db:
@@ -74,6 +93,11 @@ async def sync_from_discord():
             except DuplicateEventError:
                 skipped += 1
             except Exception as e:
-                logger.error(f"Failed to replay event {raw.get('event_id')}: {e}")
+                logger.error(
+                    f"Failed to replay event {raw.get('event_id')}: {e}"
+                )
 
-        logger.info(f"Sync complete: {replayed} replayed, {skipped} skipped (already in DB)")
+        logger.info(
+            f"Discord sync complete: {replayed} replayed, "
+            f"{skipped} already in DB"
+        )
