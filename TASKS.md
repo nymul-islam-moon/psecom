@@ -69,3 +69,10 @@ This file tracks every task ever requested. Checked = done & committed. Unchecke
 - [x] Conversion charge support — fee recorded as separate expense transaction
 - [x] Overspend check on conversion (total deduct = amount + charge must fit balance)
 - [x] Dynamic currency symbol: ৳ for BDT, $ for USD
+
+## Phase 8 — Theme
+- [x] Light mode (off-white/lavender tint, modern and readable)
+- [x] Dark/light toggle button in Sidebar footer
+- [x] Theme persisted in localStorage (survives page refresh)
+- [x] No flash on reload (theme applied before React mounts in index.html)
+- [x] All CSS variables updated for both modes (badges, buttons, inputs, tables, scrollbar)
