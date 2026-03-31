@@ -55,18 +55,30 @@ async def _handle_transaction(payload: EventPayload, db: AsyncSession):
     data = payload.data
 
     if payload.action == "insert":
-        txn = Transaction(
-            id=data["id"],
-            type=data["type"],
-            amount=data["amount"],
-            currency=data.get("currency", "USD"),
-            account_id=data["account_id"],
-            category=data.get("category"),
-            note=data.get("note"),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
-        db.add(txn)
+        existing = await db.get(Transaction, data["id"])
+        if existing:
+            # Was soft-deleted — restore and update fields
+            existing.type = data["type"]
+            existing.amount = data["amount"]
+            existing.currency = data.get("currency", "USD")
+            existing.account_id = data["account_id"]
+            existing.category = data.get("category")
+            existing.note = data.get("note")
+            existing.deleted_at = None
+            existing.updated_at = datetime.utcnow()
+        else:
+            txn = Transaction(
+                id=data["id"],
+                type=data["type"],
+                amount=data["amount"],
+                currency=data.get("currency", "USD"),
+                account_id=data["account_id"],
+                category=data.get("category"),
+                note=data.get("note"),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            db.add(txn)
 
     elif payload.action == "update":
         txn = await db.get(Transaction, payload.target_id)
@@ -93,16 +105,26 @@ async def _handle_account(payload: EventPayload, db: AsyncSession):
     data = payload.data
 
     if payload.action == "insert":
-        account = Account(
-            id=data["id"],
-            name=data["name"],
-            type=data["type"],
-            parent_id=data.get("parent_id"),
-            currency=data.get("currency", "USD"),
-            meta=data.get("meta"),
-            created_at=datetime.utcnow(),
-        )
-        db.add(account)
+        existing = await db.get(Account, data["id"])
+        if existing:
+            # Was soft-deleted — restore and update fields
+            existing.name = data["name"]
+            existing.type = data["type"]
+            existing.parent_id = data.get("parent_id")
+            existing.currency = data.get("currency", "USD")
+            existing.meta = data.get("meta")
+            existing.deleted_at = None
+        else:
+            account = Account(
+                id=data["id"],
+                name=data["name"],
+                type=data["type"],
+                parent_id=data.get("parent_id"),
+                currency=data.get("currency", "USD"),
+                meta=data.get("meta"),
+                created_at=datetime.utcnow(),
+            )
+            db.add(account)
 
     elif payload.action == "update":
         account = await db.get(Account, payload.target_id)
