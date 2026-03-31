@@ -57,10 +57,11 @@ If a Claude session expires, start a new session and check this file to resume.
 - [x] `CLAUDE.md` — full project guide for future Claude sessions
 
 ### Phase 4 — Testing & Validation
-- [ ] End-to-end Docker Compose boot test
-- [ ] Backend health check (`GET /health`)
-- [ ] Post a test event via API
-- [ ] Discord bot receives message and processes it
+- [x] End-to-end Docker Compose boot test (all 3 containers healthy)
+- [x] Backend health check (`GET /health` → `{"status":"ok"}`)
+- [x] Post test events via API (2 accounts, 6 active txns, 1 soft-deleted)
+- [x] Verified `/api/transactions/`, `/api/accounts/`, `/api/transactions/deleted`
+- [ ] Discord bot live test (requires DISCORD_TOKEN + DISCORD_CHANNEL_ID in .env)
 
 ---
 
