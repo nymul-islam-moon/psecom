@@ -1,10 +1,10 @@
 """
 Event Engine: processes incoming events and dispatches to the correct handler.
-Enforces idempotency (duplicate event_id = ignore) and routes insert/update/delete.
+Enforces idempotency (duplicate event_id = ignore) and routes
+insert/update/delete.
 """
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.modules.events.model import Event
 from app.modules.accounts.model import Account
@@ -16,11 +16,15 @@ class DuplicateEventError(Exception):
     pass
 
 
-async def process_event(payload: EventPayload, db: AsyncSession) -> Event:
+async def process_event(
+    payload: EventPayload, db: AsyncSession
+) -> Event:
     # Idempotency: ignore if event_id already exists
     existing = await db.get(Event, payload.event_id)
     if existing:
-        raise DuplicateEventError(f"Event {payload.event_id} already processed")
+        raise DuplicateEventError(
+            f"Event {payload.event_id} already processed"
+        )
 
     # Record the event
     event = Event(
@@ -67,7 +71,6 @@ async def _handle_transaction(payload: EventPayload, db: AsyncSession):
     elif payload.action == "update":
         txn = await db.get(Transaction, payload.target_id)
         if txn:
-            # Special restore flag: clear deleted_at
             if data.get("restore"):
                 txn.deleted_at = None
             else:
@@ -109,7 +112,6 @@ async def _handle_account(payload: EventPayload, db: AsyncSession):
                     setattr(account, field, data[field])
 
     elif payload.action == "delete":
-        # Accounts don't have deleted_at — remove from state (event log still has it)
         account = await db.get(Account, payload.target_id)
         if account:
-            await db.delete(account)
+            account.deleted_at = datetime.utcnow()

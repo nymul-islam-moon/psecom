@@ -28,5 +28,6 @@ class AccountResponse(BaseModel):
     currency: str
     meta: Optional[dict]
     created_at: datetime
+    deleted_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
