@@ -5,7 +5,18 @@ import { generateId } from '../utils/uuid'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 
-const EMPTY_FORM = { name: '', type: 'cash', currency: 'USD', parent_id: '' }
+const ACCOUNT_TYPES = [
+  { value: 'cash',   label: '💵 Cash' },
+  { value: 'bank',   label: '🏦 Bank' },
+  { value: 'card',   label: '💳 Card' },
+  { value: 'bkash',  label: '📱 bKash' },
+  { value: 'nagad',  label: '📱 Nagad' },
+  { value: 'rocket', label: '📱 Rocket' },
+  { value: 'upay',   label: '📱 Upay' },
+  { value: 'tap',    label: '📱 Tap' },
+]
+
+const EMPTY_FORM = { name: '', type: 'cash', currency: 'BDT', parent_id: '' }
 
 export default function Accounts() {
   const [accounts, setAccounts] = useState([])
@@ -133,9 +144,9 @@ export default function Accounts() {
             <div>
               <label style={labelStyle}>Type</label>
               <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-                <option value="cash">Cash</option>
-                <option value="bank">Bank</option>
-                <option value="card">Card</option>
+                {ACCOUNT_TYPES.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
               </select>
             </div>
             <div>

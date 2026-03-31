@@ -30,6 +30,11 @@ a { color: inherit; text-decoration: none; }
 .badge-cash     { background: #3b2a05; color: #fcd34d; }
 .badge-bank     { background: #1e3a5f; color: #93c5fd; }
 .badge-card     { background: #2d1b4e; color: #c4b5fd; }
+.badge-bkash    { background: #4a0d2e; color: #f9a8d4; }
+.badge-nagad    { background: #431407; color: #fdba74; }
+.badge-rocket   { background: #2e1065; color: #d8b4fe; }
+.badge-upay     { background: #042f2e; color: #5eead4; }
+.badge-tap      { background: #0c2a1a; color: #6ee7b7; }
 
 button {
   cursor: pointer;
