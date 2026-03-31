@@ -1,121 +1,225 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getTransactions, getAccounts, triggerSync } from '../services/api'
-import { formatCurrency, formatDate } from '../utils/format'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { getTransactions, getAccounts, triggerSync, triggerPurge } from '../services/api'
+import { formatCurrency, formatDate, formatShortDate } from '../utils/format'
+import Toast from '../components/Toast'
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background: '#161b27', border: '1px solid #2a3550', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
+      <div style={{ color: '#8892a4', marginBottom: 6 }}>{label}</div>
+      {payload.map(p => (
+        <div key={p.name} style={{ color: p.color, fontWeight: 600 }}>
+          {p.name}: {formatCurrency(p.value)}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const [transactions, setTransactions] = useState([])
   const [accounts, setAccounts] = useState([])
   const [syncing, setSyncing] = useState(false)
-  const [syncMsg, setSyncMsg] = useState('')
+  const [purging, setPurging] = useState(false)
+  const [toast, setToast] = useState(null)
   const navigate = useNavigate()
 
   const load = () => {
-    getTransactions({ limit: 10 }).then(r => setTransactions(r.data))
+    getTransactions({ limit: 50 }).then(r => setTransactions(r.data))
     getAccounts().then(r => setAccounts(r.data))
   }
-
   useEffect(() => { load() }, [])
 
-  const totalIncome = transactions
-    .filter(t => t.type === 'income')
-    .reduce((s, t) => s + parseFloat(t.amount), 0)
-  const totalExpense = transactions
-    .filter(t => t.type === 'expense')
-    .reduce((s, t) => s + parseFloat(t.amount), 0)
+  const totalIncome  = transactions.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount), 0)
+  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount), 0)
+  const balance      = totalIncome - totalExpense
+
+  // Build last-14-days chart data
+  const byDate = {}
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    byDate[key] = { date: key, income: 0, expense: 0 }
+  }
+  transactions.forEach(t => {
+    const day = (t.created_at || '').slice(0, 10)
+    if (byDate[day]) {
+      if (t.type === 'income')  byDate[day].income  += parseFloat(t.amount)
+      if (t.type === 'expense') byDate[day].expense += parseFloat(t.amount)
+    }
+  })
+  const chartData = Object.values(byDate).map(d => ({ ...d, date: formatShortDate(d.date) }))
 
   const handleSync = async () => {
     setSyncing(true)
-    setSyncMsg('')
     try {
       await triggerSync()
-      setSyncMsg('Sync started! Refresh in a moment.')
-      setTimeout(() => { setSyncMsg(''); load() }, 3000)
+      setToast({ message: 'Sync started — refreshing in 3s…', type: 'success' })
+      setTimeout(() => { load() }, 3000)
+    } catch {
+      setToast({ message: 'Sync failed', type: 'error' })
     } finally {
       setSyncing(false)
     }
   }
 
+  const handlePurge = async () => {
+    const confirmed = window.confirm(
+      '⚠️ YEAR RESET — This will permanently delete ALL Discord messages and wipe the entire database.\n\nThis CANNOT be undone.\n\nAre you absolutely sure?'
+    )
+    if (!confirmed) return
+    const confirmed2 = window.confirm('Last chance! Type OK to confirm total reset.')
+    if (!confirmed2) return
+    setPurging(true)
+    try {
+      await triggerPurge()
+      setToast({ message: 'Purge started — all data will be wiped.', type: 'success' })
+      setTimeout(() => load(), 3000)
+    } catch (e) {
+      setToast({ message: e.response?.data?.detail || 'Purge failed.', type: 'error' })
+    } finally {
+      setPurging(false)
+    }
+  }
+
+  const recent = transactions.slice(0, 8)
+
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Dashboard</h1>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn-primary" onClick={() => navigate('/transactions')}>+ Add Transaction</button>
+    <div style={{ animation: 'fadeUp 0.3s ease' }}>
+      {/* Header */}
+      <div className="page-header">
+        <div>
+          <div className="page-title">Dashboard</div>
+          <div className="page-subtitle">Your financial overview</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-primary" onClick={() => navigate('/transactions')}>+ New Transaction</button>
           <button className="btn-ghost" onClick={handleSync} disabled={syncing}>
-            {syncing ? 'Syncing…' : '🔄 Sync Discord'}
+            {syncing ? '⟳ Syncing…' : '⟳ Sync Discord'}
+          </button>
+          <button className="btn-danger" onClick={handlePurge} disabled={purging} style={{ fontSize: 12 }}>
+            {purging ? 'Purging…' : '⚠ Year Reset'}
           </button>
         </div>
       </div>
 
-      {syncMsg && <div style={{ background: '#14532d', color: '#86efac', padding: '10px 16px', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>{syncMsg}</div>}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}>
-        <div className="card">
-          <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Total Income</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#86efac' }}>{formatCurrency(totalIncome)}</div>
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+        <div className="stat-card">
+          <div className="stat-icon">↑</div>
+          <div className="stat-label">Total Income</div>
+          <div className="stat-value" style={{ color: '#6ee7b7' }}>{formatCurrency(totalIncome)}</div>
+          <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>{transactions.filter(t=>t.type==='income').length} transactions</div>
         </div>
-        <div className="card">
-          <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Total Expenses</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#fca5a5' }}>{formatCurrency(totalExpense)}</div>
+        <div className="stat-card">
+          <div className="stat-icon">↓</div>
+          <div className="stat-label">Total Expenses</div>
+          <div className="stat-value" style={{ color: '#fca5a5' }}>{formatCurrency(totalExpense)}</div>
+          <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>{transactions.filter(t=>t.type==='expense').length} transactions</div>
         </div>
-        <div className="card">
-          <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Balance</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: totalIncome - totalExpense >= 0 ? '#86efac' : '#fca5a5' }}>
-            {formatCurrency(totalIncome - totalExpense)}
-          </div>
+        <div className="stat-card">
+          <div className="stat-icon">◎</div>
+          <div className="stat-label">Net Balance</div>
+          <div className="stat-value" style={{ color: balance >= 0 ? '#6ee7b7' : '#fca5a5' }}>{formatCurrency(balance)}</div>
+          <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>{accounts.length} accounts</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
+      {/* Chart + Accounts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 16 }}>
+        {/* Area chart */}
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600 }}>Recent Transactions</h2>
-            <button className="btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => navigate('/transactions')}>View all</button>
-          </div>
-          <table>
-            <thead>
-              <tr><th>Type</th><th>Amount</th><th>Category</th><th>Note</th><th>Date</th></tr>
-            </thead>
-            <tbody>
-              {transactions.map(t => (
-                <tr key={t.id}>
-                  <td><span className={`badge badge-${t.type}`}>{t.type}</span></td>
-                  <td style={{ fontWeight: 600 }}>{formatCurrency(t.amount, t.currency)}</td>
-                  <td style={{ color: '#94a3b8' }}>{t.category || '—'}</td>
-                  <td style={{ color: '#94a3b8', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.note || '—'}</td>
-                  <td style={{ color: '#64748b', fontSize: 12 }}>{formatDate(t.created_at)}</td>
-                </tr>
-              ))}
-              {transactions.length === 0 && (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#64748b', padding: 24 }}>No transactions yet</td></tr>
-              )}
-            </tbody>
-          </table>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 18, color: '#f0f4ff' }}>Last 14 Days</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={chartData} margin={{ top: 0, right: 4, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gIncome" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#10b981" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gExpense" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1c2333" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#4a556b' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: '#4a556b' }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="income"  stroke="#10b981" strokeWidth={2} fill="url(#gIncome)"  name="Income" />
+              <Area type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2} fill="url(#gExpense)" name="Expense" />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
 
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600 }}>Accounts</h2>
-            <button className="btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => navigate('/accounts')}>Manage</button>
+        {/* Accounts */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#f0f4ff' }}>Accounts</div>
+            <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => navigate('/accounts')}>Manage →</button>
           </div>
-          {accounts.map(a => (
-            <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #334155' }}>
-              <div>
-                <div style={{ fontWeight: 500 }}>{a.name}</div>
-                <span className={`badge badge-${a.type}`}>{a.type}</span>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {accounts.length === 0 && (
+              <div className="empty-state">
+                <div className="empty-state-icon">◈</div>
+                <div>No accounts yet</div>
+                <button className="btn-ghost" style={{ marginTop: 10, fontSize: 12 }} onClick={() => navigate('/accounts')}>+ Add account</button>
               </div>
-              <div style={{ color: '#94a3b8', fontSize: 12 }}>{a.currency}</div>
-            </div>
-          ))}
-          {accounts.length === 0 && (
-            <div style={{ color: '#64748b', textAlign: 'center', padding: 16 }}>
-              No accounts.{' '}
-              <span style={{ color: '#6366f1', cursor: 'pointer' }} onClick={() => navigate('/accounts')}>Add one →</span>
-            </div>
-          )}
+            )}
+            {accounts.map(a => (
+              <div key={a.id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '9px 12px', borderRadius: 9,
+                background: '#0d1117', border: '1px solid #21293d', marginBottom: 4,
+              }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#f0f4ff' }}>{a.name}</div>
+                  <span className={`badge badge-${a.type}`}>{a.type}</span>
+                </div>
+                <div style={{ fontSize: 11, color: '#4a556b', textAlign: 'right' }}>
+                  <div>{a.currency}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Recent Transactions */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#f0f4ff' }}>Recent Transactions</div>
+          <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => navigate('/transactions')}>View all →</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th><th>Amount</th><th>Category</th><th>Note</th><th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recent.map(t => (
+              <tr key={t.id}>
+                <td><span className={`badge badge-${t.type}`}>{t.type}</span></td>
+                <td style={{ fontWeight: 600, color: t.type === 'income' ? '#6ee7b7' : t.type === 'expense' ? '#fca5a5' : '#93c5fd' }}>
+                  {formatCurrency(t.amount, t.currency)}
+                </td>
+                <td style={{ color: '#8892a4' }}>{t.category || '—'}</td>
+                <td style={{ color: '#8892a4', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.note || '—'}</td>
+                <td style={{ color: '#4a556b', fontSize: 12 }}>{formatDate(t.created_at)}</td>
+              </tr>
+            ))}
+            {recent.length === 0 && (
+              <tr><td colSpan={5}><div className="empty-state">No transactions yet</div></td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
 }

@@ -20,4 +20,7 @@ export const getEvents = (params = {}) => api.get('/events/', { params })
 // Sync
 export const triggerSync = () => api.post('/sync/')
 
+// Purge (year reset)
+export const triggerPurge = () => api.post('/purge/?confirm=true')
+
 export default api

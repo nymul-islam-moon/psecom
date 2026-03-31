@@ -11,6 +11,7 @@ from app.api.routes_accounts import router as accounts_router
 from app.api.routes_transactions import router as transactions_router
 from app.api.routes_events import router as events_router
 from app.api.routes_sync import router as sync_router
+from app.api.routes_purge import router as purge_router
 from app.discord_bot.bot import start_bot
 
 logging.basicConfig(level=logging.INFO)
@@ -54,6 +55,7 @@ app.include_router(accounts_router, prefix="/api")
 app.include_router(transactions_router, prefix="/api")
 app.include_router(events_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
+app.include_router(purge_router, prefix="/api")
 
 
 @app.get("/health")

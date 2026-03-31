@@ -4,12 +4,33 @@ Enforces idempotency (duplicate event_id = ignore) and routes
 insert/update/delete.
 """
 from datetime import datetime
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.events.model import Event
 from app.modules.accounts.model import Account
 from app.modules.transactions.model import Transaction
 from app.schemas.event import EventPayload
+
+
+async def _get_account_balance(account_id: str, db: AsyncSession, exclude_txn_id: str | None = None) -> float:
+    """Calculate current balance for an account."""
+    income_q = select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+        Transaction.account_id == account_id,
+        Transaction.type == "income",
+        Transaction.deleted_at == None,  # noqa: E711
+    )
+    expense_q = select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+        Transaction.account_id == account_id,
+        Transaction.type.in_(["expense", "transfer"]),
+        Transaction.deleted_at == None,  # noqa: E711
+    )
+    if exclude_txn_id:
+        income_q  = income_q.where(Transaction.id != exclude_txn_id)
+        expense_q = expense_q.where(Transaction.id != exclude_txn_id)
+    income  = float((await db.execute(income_q)).scalar() or 0)
+    expense = float((await db.execute(expense_q)).scalar() or 0)
+    return income - expense
 
 
 class DuplicateEventError(Exception):
@@ -55,6 +76,15 @@ async def _handle_transaction(payload: EventPayload, db: AsyncSession):
     data = payload.data
 
     if payload.action == "insert":
+        # Overspend check for expense/transfer
+        if data.get("type") in ("expense", "transfer") and data.get("account_id"):
+            balance = await _get_account_balance(data["account_id"], db)
+            amount  = float(data.get("amount", 0))
+            if amount > balance:
+                raise ValueError(
+                    f"Insufficient balance: account has {balance:.2f} but expense is {amount:.2f}"
+                )
+
         existing = await db.get(Transaction, data["id"])
         if existing:
             # Was soft-deleted — restore and update fields
@@ -86,6 +116,16 @@ async def _handle_transaction(payload: EventPayload, db: AsyncSession):
             if data.get("restore"):
                 txn.deleted_at = None
             else:
+                # Overspend check if changing to expense/transfer
+                new_type   = data.get("type", txn.type)
+                new_amount = float(data.get("amount", txn.amount))
+                acct_id    = data.get("account_id", txn.account_id)
+                if new_type in ("expense", "transfer"):
+                    balance = await _get_account_balance(acct_id, db, exclude_txn_id=txn.id)
+                    if new_amount > balance:
+                        raise ValueError(
+                            f"Insufficient balance: account has {balance:.2f} but expense is {new_amount:.2f}"
+                        )
                 for field in (
                     "type", "amount", "currency",
                     "account_id", "category", "note"
