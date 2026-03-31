@@ -19,25 +19,40 @@ const CustomTooltip = ({ active, payload, label }) => {
   )
 }
 
+// Group income/expense/balance by currency
+function calcByCurrency(transactions) {
+  const map = {}
+  transactions.forEach(t => {
+    const cur = (t.currency || 'BDT').toUpperCase()
+    if (!map[cur]) map[cur] = { income: 0, expense: 0 }
+    if (t.type === 'income')  map[cur].income  += parseFloat(t.amount)
+    if (t.type === 'expense') map[cur].expense += parseFloat(t.amount)
+  })
+  return Object.entries(map).map(([currency, v]) => ({
+    currency,
+    income:  v.income,
+    expense: v.expense,
+    balance: v.income - v.expense,
+  }))
+}
+
 export default function Dashboard() {
   const [transactions, setTransactions] = useState([])
-  const [accounts, setAccounts] = useState([])
-  const [syncing, setSyncing] = useState(false)
-  const [purging, setPurging] = useState(false)
-  const [toast, setToast] = useState(null)
+  const [accounts, setAccounts]         = useState([])
+  const [syncing, setSyncing]           = useState(false)
+  const [purging, setPurging]           = useState(false)
+  const [toast, setToast]               = useState(null)
   const navigate = useNavigate()
 
   const load = () => {
-    getTransactions({ limit: 50 }).then(r => setTransactions(r.data))
+    getTransactions({ limit: 200 }).then(r => setTransactions(r.data))
     getAccounts().then(r => setAccounts(r.data))
   }
   useEffect(() => { load() }, [])
 
-  const totalIncome  = transactions.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount), 0)
-  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount), 0)
-  const balance      = totalIncome - totalExpense
+  const currencyTotals = calcByCurrency(transactions)
 
-  // Build last-14-days chart data
+  // Chart: last 14 days (BDT only for chart clarity)
   const byDate = {}
   for (let i = 13; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
@@ -46,7 +61,7 @@ export default function Dashboard() {
   }
   transactions.forEach(t => {
     const day = (t.created_at || '').slice(0, 10)
-    if (byDate[day]) {
+    if (byDate[day] && (t.currency || 'BDT').toUpperCase() === 'BDT') {
       if (t.type === 'income')  byDate[day].income  += parseFloat(t.amount)
       if (t.type === 'expense') byDate[day].expense += parseFloat(t.amount)
     }
@@ -58,21 +73,15 @@ export default function Dashboard() {
     try {
       await triggerSync()
       setToast({ message: 'Sync started — refreshing in 3s…', type: 'success' })
-      setTimeout(() => { load() }, 3000)
+      setTimeout(() => load(), 3000)
     } catch {
       setToast({ message: 'Sync failed', type: 'error' })
-    } finally {
-      setSyncing(false)
-    }
+    } finally { setSyncing(false) }
   }
 
   const handlePurge = async () => {
-    const confirmed = window.confirm(
-      '⚠️ YEAR RESET — This will permanently delete ALL Discord messages and wipe the entire database.\n\nThis CANNOT be undone.\n\nAre you absolutely sure?'
-    )
-    if (!confirmed) return
-    const confirmed2 = window.confirm('Last chance! Type OK to confirm total reset.')
-    if (!confirmed2) return
+    if (!window.confirm('⚠️ YEAR RESET — This will permanently delete ALL Discord messages and wipe the entire database.\n\nThis CANNOT be undone.\n\nAre you absolutely sure?')) return
+    if (!window.confirm('Last chance! Press OK to confirm total reset.')) return
     setPurging(true)
     try {
       await triggerPurge()
@@ -80,9 +89,7 @@ export default function Dashboard() {
       setTimeout(() => load(), 3000)
     } catch (e) {
       setToast({ message: e.response?.data?.detail || 'Purge failed.', type: 'error' })
-    } finally {
-      setPurging(false)
-    }
+    } finally { setPurging(false) }
   }
 
   const recent = transactions.slice(0, 8)
@@ -97,42 +104,62 @@ export default function Dashboard() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn-primary" onClick={() => navigate('/transactions')}>+ New Transaction</button>
-          <button className="btn-ghost" onClick={handleSync} disabled={syncing}>
-            {syncing ? '⟳ Syncing…' : '⟳ Sync Discord'}
-          </button>
-          <button className="btn-danger" onClick={handlePurge} disabled={purging} style={{ fontSize: 12 }}>
-            {purging ? 'Purging…' : '⚠ Year Reset'}
-          </button>
+          <button className="btn-ghost" onClick={() => navigate('/convert')} style={{ fontSize: 12 }}>⇌ Convert</button>
+          <button className="btn-ghost" onClick={handleSync} disabled={syncing}>{syncing ? '⟳ Syncing…' : '⟳ Sync Discord'}</button>
+          <button className="btn-danger" onClick={handlePurge} disabled={purging} style={{ fontSize: 12 }}>{purging ? 'Purging…' : '⚠ Year Reset'}</button>
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
-        <div className="stat-card">
-          <div className="stat-icon">↑</div>
-          <div className="stat-label">Total Income</div>
-          <div className="stat-value" style={{ color: '#6ee7b7' }}>{formatCurrency(totalIncome)}</div>
-          <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>{transactions.filter(t=>t.type==='income').length} transactions</div>
+      {/* Per-currency stat cards */}
+      {currencyTotals.length === 0 ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+          {[['Total Income','↑','#6ee7b7'],['Total Expenses','↓','#fca5a5'],['Net Balance','◎','#8892a4']].map(([label, icon, color]) => (
+            <div key={label} className="stat-card">
+              <div className="stat-icon">{icon}</div>
+              <div className="stat-label">{label}</div>
+              <div className="stat-value" style={{ color }}>৳0.00</div>
+            </div>
+          ))}
         </div>
-        <div className="stat-card">
-          <div className="stat-icon">↓</div>
-          <div className="stat-label">Total Expenses</div>
-          <div className="stat-value" style={{ color: '#fca5a5' }}>{formatCurrency(totalExpense)}</div>
-          <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>{transactions.filter(t=>t.type==='expense').length} transactions</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">◎</div>
-          <div className="stat-label">Net Balance</div>
-          <div className="stat-value" style={{ color: balance >= 0 ? '#6ee7b7' : '#fca5a5' }}>{formatCurrency(balance)}</div>
-          <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>{accounts.length} accounts</div>
-        </div>
-      </div>
+      ) : (
+        currencyTotals.map(({ currency, income, expense, balance }) => (
+          <div key={currency} style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#4a556b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+              {currency} Summary
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+              <div className="stat-card">
+                <div className="stat-icon">↑</div>
+                <div className="stat-label">Income</div>
+                <div className="stat-value" style={{ color: '#6ee7b7' }}>{formatCurrency(income, currency)}</div>
+                <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>
+                  {transactions.filter(t => t.type === 'income' && (t.currency || 'BDT').toUpperCase() === currency).length} transactions
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">↓</div>
+                <div className="stat-label">Expenses</div>
+                <div className="stat-value" style={{ color: '#fca5a5' }}>{formatCurrency(expense, currency)}</div>
+                <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>
+                  {transactions.filter(t => t.type === 'expense' && (t.currency || 'BDT').toUpperCase() === currency).length} transactions
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">◎</div>
+                <div className="stat-label">Net Balance</div>
+                <div className="stat-value" style={{ color: balance >= 0 ? '#6ee7b7' : '#fca5a5' }}>{formatCurrency(balance, currency)}</div>
+                <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>{accounts.length} accounts</div>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
 
       {/* Chart + Accounts */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 16 }}>
-        {/* Area chart */}
         <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 18, color: '#f0f4ff' }}>Last 14 Days</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#f0f4ff' }}>Last 14 Days</div>
+          <div style={{ fontSize: 11, color: '#4a556b', marginBottom: 14 }}>BDT transactions only</div>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={chartData} margin={{ top: 0, right: 4, left: -20, bottom: 0 }}>
               <defs>
@@ -155,13 +182,12 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* Accounts */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#f0f4ff' }}>Accounts</div>
             <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => navigate('/accounts')}>Manage →</button>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {accounts.length === 0 && (
               <div className="empty-state">
                 <div className="empty-state-icon">◈</div>
@@ -170,18 +196,12 @@ export default function Dashboard() {
               </div>
             )}
             {accounts.map(a => (
-              <div key={a.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '9px 12px', borderRadius: 9,
-                background: '#0d1117', border: '1px solid #21293d', marginBottom: 4,
-              }}>
+              <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: 9, background: '#0d1117', border: '1px solid #21293d' }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#f0f4ff' }}>{a.name}</div>
                   <span className={`badge badge-${a.type}`}>{a.type}</span>
                 </div>
-                <div style={{ fontSize: 11, color: '#4a556b', textAlign: 'right' }}>
-                  <div>{a.currency}</div>
-                </div>
+                <div style={{ fontSize: 11, color: '#4a556b' }}>{a.currency}</div>
               </div>
             ))}
           </div>
@@ -196,9 +216,7 @@ export default function Dashboard() {
         </div>
         <table>
           <thead>
-            <tr>
-              <th>Type</th><th>Amount</th><th>Category</th><th>Note</th><th>Date</th>
-            </tr>
+            <tr><th>Type</th><th>Amount</th><th>Category</th><th>Note</th><th>Date</th></tr>
           </thead>
           <tbody>
             {recent.map(t => (
