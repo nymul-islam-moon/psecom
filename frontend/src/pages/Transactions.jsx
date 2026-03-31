@@ -6,7 +6,7 @@ import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 
 const EMPTY_FORM = {
-  type: 'expense', amount: '', currency: 'USD',
+  type: 'expense', amount: '', currency: 'BDT',
   account_id: '', category: '', note: '',
 }
 
