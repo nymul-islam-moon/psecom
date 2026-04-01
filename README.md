@@ -334,4 +334,7 @@ main
 All work is done via branches and merged into `develop`.
 
 ```
+Author: Nymul Islam Moon
+E-mail: nymulislalm.dev@gmail.com
+Phone: 01339315497
 ```
