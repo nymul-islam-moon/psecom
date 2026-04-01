@@ -21,6 +21,10 @@ export const getEvents = (params = {}) => api.get('/events/', { params })
 export const getTransfers = () => api.get('/transfers/')
 export const getTransfer = (id) => api.get(`/transfers/${id}`)
 
+// Year-end
+export const getYearEndPreview = () => api.get('/yearend/preview')
+export const executeYearEnd    = () => api.post('/yearend/execute?confirm=true')
+
 // Sync
 export const triggerSync = () => api.post('/sync/')
 

@@ -13,6 +13,7 @@ from app.api.routes_events import router as events_router
 from app.api.routes_sync import router as sync_router
 from app.api.routes_purge import router as purge_router
 from app.api.routes_transfers import router as transfers_router
+from app.api.routes_yearend import router as yearend_router
 from app.discord_bot.bot import start_bot
 # Import models so SQLAlchemy registers them before init_db
 from app.modules.transfers.model import Transfer  # noqa: F401
@@ -60,6 +61,7 @@ app.include_router(events_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
 app.include_router(purge_router, prefix="/api")
 app.include_router(transfers_router, prefix="/api")
+app.include_router(yearend_router, prefix="/api")
 
 
 @app.get("/health")
