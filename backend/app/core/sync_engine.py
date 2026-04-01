@@ -45,10 +45,11 @@ async def _fetch_discord_messages() -> list:
             async for message in channel.history(
                 limit=None, oldest_first=True
             ):
-                if message.author.bot:
-                    continue
                 try:
                     payload = json.loads(message.content)
+                    # Only process messages that look like valid events
+                    if "event_id" not in payload or "action" not in payload:
+                        continue
                     messages.append((message.created_at, payload))
                 except (json.JSONDecodeError, KeyError):
                     pass
