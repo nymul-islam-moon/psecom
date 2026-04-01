@@ -4,6 +4,7 @@ import { formatCurrency, formatDate } from '../utils/format'
 import { generateId } from '../utils/uuid'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
+import api from '../services/api'
 
 const EMPTY_FORM = {
   from_account_id: '',
@@ -31,14 +32,16 @@ const DetailRow = ({ label, value }) => (
 )
 
 export default function Transfers() {
-  const [transfers, setTransfers] = useState([])
-  const [accounts, setAccounts]   = useState([])
-  const [modal, setModal]         = useState(null)
-  const [selected, setSelected]   = useState(null)
-  const [form, setForm]           = useState(EMPTY_FORM)
-  const [saving, setSaving]       = useState(false)
-  const [error, setError]         = useState('')
-  const [toast, setToast]         = useState(null)
+  const [transfers, setTransfers]       = useState([])
+  const [accounts, setAccounts]         = useState([])
+  const [modal, setModal]               = useState(null)
+  const [selected, setSelected]         = useState(null)
+  const [form, setForm]                 = useState(EMPTY_FORM)
+  const [saving, setSaving]             = useState(false)
+  const [error, setError]               = useState('')
+  const [toast, setToast]               = useState(null)
+  const [fromBalance, setFromBalance]   = useState(null)  // { balance, currency }
+  const [loadingBal, setLoadingBal]     = useState(false)
 
   const showToast = (message, type = 'success') => setToast({ message, type })
   const load = () => getTransfers().then(r => setTransfers(r.data))
@@ -48,8 +51,27 @@ export default function Transfers() {
 
   const accountName = (id) => accounts.find(a => a.id === id)?.name || id
 
-  const openCreate = () => { setForm(EMPTY_FORM); setError(''); setModal('create') }
+  const openCreate = () => { setForm(EMPTY_FORM); setError(''); setFromBalance(null); setModal('create') }
   const openView   = (t) => { setSelected(t); setModal('view') }
+
+  // Fetch balance when from_account is selected
+  const handleFromAccountChange = async (id) => {
+    setForm(f => {
+      const acct = accounts.find(a => a.id === id)
+      return { ...f, from_account_id: id, from_currency: acct?.currency || f.from_currency }
+    })
+    setFromBalance(null)
+    if (!id) return
+    setLoadingBal(true)
+    try {
+      const res = await api.get(`/accounts/${id}/balance`)
+      setFromBalance({ balance: res.data.balance, currency: res.data.account_id })
+      // get currency from accounts list
+      const acct = accounts.find(a => a.id === id)
+      setFromBalance({ balance: res.data.balance, currency: acct?.currency || 'BDT' })
+    } catch { setFromBalance(null) }
+    finally { setLoadingBal(false) }
+  }
 
   // Auto-fill to_amount when from_amount changes (same currency = same amount)
   const handleFromAmount = (val) => {
@@ -59,6 +81,10 @@ export default function Transfers() {
       to_amount: f.from_currency === f.to_currency ? val : f.to_amount,
     }))
   }
+
+  // Derived: total sender will pay
+  const totalDebit = (parseFloat(form.from_amount) || 0) + (parseFloat(form.charge) || 0)
+  const isOverspend = fromBalance !== null && totalDebit > fromBalance.balance && totalDebit > 0
 
   const handleSave = async () => {
     const { from_account_id, to_account_id, from_amount, to_amount } = form
@@ -186,10 +212,17 @@ export default function Transfers() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field label="From Account *">
-                <select value={form.from_account_id} onChange={e => setForm(f => ({ ...f, from_account_id: e.target.value }))}>
+                <select value={form.from_account_id} onChange={e => handleFromAccountChange(e.target.value)}>
                   <option value="">— Select —</option>
                   {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
+                {form.from_account_id && (
+                  <div style={{ marginTop: 5, fontSize: 12, color: isOverspend ? 'var(--red-text)' : 'var(--green-text)', fontWeight: 500 }}>
+                    {loadingBal ? 'Loading balance…' : fromBalance !== null
+                      ? `Available: ${formatCurrency(fromBalance.balance, fromBalance.currency)}`
+                      : ''}
+                  </div>
+                )}
               </Field>
               <Field label="To Account *">
                 <select value={form.to_account_id} onChange={e => setForm(f => ({ ...f, to_account_id: e.target.value }))}>
@@ -226,13 +259,25 @@ export default function Transfers() {
             </Field>
 
             {form.from_amount && form.to_amount && (
-              <div style={{ background: 'var(--bg-overlay)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                <strong style={{ color: 'var(--text-primary)' }}>Summary: </strong>
-                Sender pays <strong>{formatCurrency(parseFloat(form.from_amount || 0) + parseFloat(form.charge || 0), form.from_currency)}</strong>
-                {parseFloat(form.charge) > 0 && <> ({formatCurrency(parseFloat(form.from_amount), form.from_currency)} + {formatCurrency(parseFloat(form.charge), form.from_currency)} fee)</>}
-                {' '}→ Receiver gets <strong>{formatCurrency(parseFloat(form.to_amount || 0), form.to_currency)}</strong>
-                {form.from_currency !== form.to_currency && form.from_amount > 0 && (
-                  <> @ rate {(parseFloat(form.to_amount) / parseFloat(form.from_amount)).toFixed(4)}</>
+              <div style={{ borderRadius: 8, padding: '10px 14px', fontSize: 12, color: isOverspend ? 'var(--red-text)' : 'var(--text-secondary)', background: isOverspend ? 'rgba(239,68,68,0.08)' : 'var(--bg-overlay)', border: `1px solid ${isOverspend ? 'rgba(239,68,68,0.3)' : 'var(--border)'}` }}>
+                {isOverspend ? (
+                  <>
+                    <strong>Insufficient balance!</strong> You need <strong>{formatCurrency(totalDebit, form.from_currency)}</strong> but only have <strong>{formatCurrency(fromBalance.balance, fromBalance.currency)}</strong> available.
+                    {parseFloat(form.charge) > 0 && <> (That's {formatCurrency(parseFloat(form.from_amount), form.from_currency)} + {formatCurrency(parseFloat(form.charge), form.from_currency)} fee.)</>}
+                  </>
+                ) : (
+                  <>
+                    <strong style={{ color: 'var(--text-primary)' }}>Summary: </strong>
+                    Sender pays <strong>{formatCurrency(totalDebit, form.from_currency)}</strong>
+                    {parseFloat(form.charge) > 0 && <> ({formatCurrency(parseFloat(form.from_amount), form.from_currency)} + {formatCurrency(parseFloat(form.charge), form.from_currency)} fee)</>}
+                    {' '}→ Receiver gets <strong>{formatCurrency(parseFloat(form.to_amount || 0), form.to_currency)}</strong>
+                    {form.from_currency !== form.to_currency && parseFloat(form.from_amount) > 0 && (
+                      <> @ rate {(parseFloat(form.to_amount) / parseFloat(form.from_amount)).toFixed(4)}</>
+                    )}
+                    {fromBalance !== null && (
+                      <> · After transfer: <strong>{formatCurrency(fromBalance.balance - totalDebit, fromBalance.currency)}</strong> remaining</>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -240,7 +285,7 @@ export default function Transfers() {
             {error && <div style={{ color: 'var(--red-text)', fontSize: 13, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)' }}>{error}</div>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
               <button className="btn-ghost" onClick={() => setModal(null)}>Cancel</button>
-              <button className="btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Transfer'}</button>
+              <button className="btn-primary" onClick={handleSave} disabled={saving || isOverspend}>{saving ? 'Saving…' : 'Transfer'}</button>
             </div>
           </div>
         </Modal>
