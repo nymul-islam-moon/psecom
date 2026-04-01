@@ -12,7 +12,7 @@ export default function Modal({ title, onClose, children, width = 500 }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(5,8,20,0.8)',
+        background: 'rgba(0,0,0,0.55)',
         backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 1000, padding: 16,
@@ -21,26 +21,26 @@ export default function Modal({ title, onClose, children, width = 500 }) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#161b27',
-          border: '1px solid #2a3550',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-light)',
           borderRadius: 18,
           padding: 28,
           width,
           maxWidth: '95vw',
           maxHeight: '90vh',
           overflowY: 'auto',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)',
+          boxShadow: 'var(--shadow-lg)',
           animation: 'fadeUp 0.2s ease',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, color: '#f0f4ff', letterSpacing: '-0.01em' }}>{title}</h2>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{title}</h2>
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid #21293d',
-              color: '#8892a4',
+              background: 'var(--bg-overlay)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
               width: 32, height: 32, padding: 0,
               borderRadius: 8, fontSize: 15,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
