@@ -20,15 +20,17 @@ const EMPTY_FORM = {
 const SUB_TYPES = {
   income:  [{ value: '',        label: 'Regular Income' },
             { value: 'initial', label: 'Initial Balance (pre-existing money)' },
-            { value: 'borrow',  label: 'Borrowed (you owe this back)' }],
+            { value: 'borrow',  label: 'Borrowed — someone gave you money, you owe it back' }],
   expense: [{ value: '',        label: 'Regular Expense (cash/card)' },
-            { value: 'sent_to', label: 'Sent to someone (transfer out)' }],
+            { value: 'sent_to', label: 'Sent to someone (transfer out)' },
+            { value: 'lent',    label: 'Lent — you gave money to someone, they owe you back' }],
 }
 
 const SUB_TYPE_BADGE = {
-  initial: { label: 'initial',  color: 'var(--text-muted)',     bg: 'var(--bg-overlay)' },
-  borrow:  { label: 'borrowed', color: '#f59e0b',               bg: 'rgba(245,158,11,0.12)' },
-  sent_to: { label: 'sent to',  color: 'var(--blue-text)',       bg: 'rgba(99,102,241,0.1)' },
+  initial: { label: 'initial',  color: 'var(--text-muted)', bg: 'var(--bg-overlay)' },
+  borrow:  { label: 'borrowed', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)' },
+  lent:    { label: 'lent',     color: '#06b6d4',            bg: 'rgba(6,182,212,0.1)' },
+  sent_to: { label: 'sent to',  color: 'var(--blue-text)',   bg: 'rgba(99,102,241,0.1)' },
 }
 
 const Field = ({ label, children }) => (
@@ -201,6 +203,9 @@ export default function Transactions() {
             {selected.sub_type === 'borrow' && (
               <DetailRow label="Debt" value={<span style={{ color: '#f59e0b' }}>You owe this money back</span>} />
             )}
+            {selected.sub_type === 'lent' && (
+              <DetailRow label="Receivable" value={<span style={{ color: '#06b6d4' }}>They owe you this money back</span>} />
+            )}
             <DetailRow label="Category" value={selected.category || '—'} />
             <DetailRow label="Note"     value={selected.note || '—'} />
             <DetailRow label="Date"     value={formatDate(selected.created_at)} />
@@ -239,7 +244,13 @@ export default function Transactions() {
 
             {form.sub_type === 'borrow' && (
               <div style={{ fontSize: 12, color: '#f59e0b', padding: '8px 12px', background: 'rgba(245,158,11,0.08)', borderRadius: 8, border: '1px solid rgba(245,158,11,0.2)' }}>
-                This amount will increase your balance but is tracked as debt — you owe it back. Use the Note field to record who lent it.
+                This amount will increase your balance but is tracked as debt — you owe it back. Use the Note field to record who lent it to you.
+              </div>
+            )}
+
+            {form.sub_type === 'lent' && (
+              <div style={{ fontSize: 12, color: '#06b6d4', padding: '8px 12px', background: 'rgba(6,182,212,0.08)', borderRadius: 8, border: '1px solid rgba(6,182,212,0.2)' }}>
+                This amount will decrease your balance — you gave money to someone and they owe you back. Use the Note field to record who you lent it to.
               </div>
             )}
 
