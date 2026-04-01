@@ -32,9 +32,10 @@ export default function Docs() {
           rows={[
             ['(none)',   'income',  'Regular earned income — salary, freelance, etc.'],
             ['initial', 'income',  'Money you already had before you started tracking. Adds to balance but not counted as "earned".'],
-            ['borrow',  'income',  'Money someone lent you. Adds to balance but you owe it back. Use Note to record who lent it.'],
+            ['borrow',  'income',  'Someone lent you money. Adds to balance but you owe it back. Use Note to record who lent it to you.'],
             ['(none)',   'expense', 'Regular cash/card expense — food, transport, bills.'],
             ['sent_to', 'expense', 'You sent money to a specific person or external service (e.g. paid rent via bKash to landlord). Records the recipient name.'],
+            ['lent',    'expense', 'You lent money to someone. Decreases your balance. They owe you back. Use Note to record who you lent it to.'],
           ]}
         />
         <Callout color="amber">The <code>transfer</code> type is auto-generated internally when you create a Transfer. You cannot create it manually from the UI. Use the Transfers page instead.</Callout>
@@ -86,7 +87,8 @@ export default function Docs() {
         <p>This means:</p>
         <ul>
           <li><strong>Initial balance</strong> adds to your balance (it's typed as income)</li>
-          <li><strong>Borrowed money</strong> adds to your balance (it's typed as income) — it shows separately so you know you owe it</li>
+          <li><strong>Borrowed money</strong> adds to your balance (it's typed as income) — tracked separately so you know you owe it back</li>
+          <li><strong>Lent money</strong> deducts from your balance (it's typed as expense) — tracked separately so you know someone owes you</li>
           <li><strong>Sent to someone</strong> deducts from balance (it's typed as expense)</li>
           <li>When you do a Transfer, the sender account loses <code>from_amount + charge</code> and the receiver gains <code>to_amount</code></li>
         </ul>

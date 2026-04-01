@@ -10,6 +10,7 @@ const TEMPLATES = {
   // --- EXPENSE ---
   'Expense: Regular':       { event_id: '__generate__', action: 'insert', entity: 'transaction', data: { id: '__generate__', type: 'expense', amount: 0, currency: 'BDT', account_id: 'your-account-id', category: 'Food', note: 'Lunch' } },
   'Expense: Sent to Someone': { event_id: '__generate__', action: 'insert', entity: 'transaction', data: { id: '__generate__', type: 'expense', sub_type: 'sent_to', to_recipient: 'Person or service name', amount: 0, currency: 'BDT', account_id: 'your-account-id', category: 'Transfer Out', note: 'Sent money to landlord' } },
+  'Expense: Lent to Someone': { event_id: '__generate__', action: 'insert', entity: 'transaction', data: { id: '__generate__', type: 'expense', sub_type: 'lent', amount: 0, currency: 'BDT', account_id: 'your-account-id', category: 'Lent', note: 'Lent to: Person Name' } },
 
   // --- TRANSFER (between your own accounts) ---
   'Transfer: Between Accounts': {
@@ -38,7 +39,7 @@ const TEMPLATES = {
 
 const GROUPS = [
   { label: 'Income',      keys: ['Income: Regular', 'Income: Initial Balance', 'Income: Borrowed'] },
-  { label: 'Expense',     keys: ['Expense: Regular', 'Expense: Sent to Someone'] },
+  { label: 'Expense',     keys: ['Expense: Regular', 'Expense: Sent to Someone', 'Expense: Lent to Someone'] },
   { label: 'Transfer',    keys: ['Transfer: Between Accounts', 'Transfer: Cross-Currency'] },
   { label: 'Edit/Delete', keys: ['Update Transaction', 'Delete Transaction', 'Delete Transfer'] },
   { label: 'Accounts',    keys: ['Add Account (Cash)', 'Add Account (Bank)', 'Add Account (bKash)', 'Add Account (Nagad)', 'Add Account (Rocket)', 'Update Account', 'Delete Account'] },
