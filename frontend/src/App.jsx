@@ -7,6 +7,7 @@ import Analytics from './pages/Analytics'
 import Deleted from './pages/Deleted'
 import DiscordSchema from './pages/DiscordSchema'
 import Convert from './pages/Convert'
+import Transfers from './pages/Transfers'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/deleted" element={<Deleted />} />
+          <Route path="/transfers" element={<Transfers />} />
           <Route path="/convert" element={<Convert />} />
           <Route path="/discord" element={<DiscordSchema />} />
         </Routes>

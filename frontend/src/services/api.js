@@ -17,6 +17,10 @@ export const getAccount = (id) => api.get(`/accounts/${id}`)
 export const postEvent = (payload) => api.post('/events/', payload)
 export const getEvents = (params = {}) => api.get('/events/', { params })
 
+// Transfers
+export const getTransfers = () => api.get('/transfers/')
+export const getTransfer = (id) => api.get(`/transfers/${id}`)
+
 // Sync
 export const triggerSync = () => api.post('/sync/')
 
