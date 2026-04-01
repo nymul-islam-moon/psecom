@@ -51,44 +51,45 @@
 
 /* ── Light mode ── */
 html.light {
-  --bg-base:      #f0f2f8;
-  --bg-surface:   #e8eaf3;
+  /* Layering: base (page bg) → surface (sidebar, panels) → elevated (cards) → overlay (inputs, dropdowns) */
+  --bg-base:      #f1f3f7;
+  --bg-surface:   #ffffff;
   --bg-elevated:  #ffffff;
-  --bg-overlay:   #eef0f9;
-  --border:       #dde1f0;
-  --border-light: #c8cee6;
+  --bg-overlay:   #f5f6fa;
+  --border:       #e2e5ef;
+  --border-light: #d0d4e8;
 
-  --text-primary:   #0f1623;
-  --text-secondary: #4a5270;
-  --text-muted:     #8890aa;
+  --text-primary:   #111827;
+  --text-secondary: #4b5563;
+  --text-muted:     #9ca3af;
 
   --accent:        #6366f1;
-  --accent-glow:   rgba(99,102,241,0.18);
+  --accent-glow:   rgba(99,102,241,0.15);
   --accent-light:  #818cf8;
-  --accent-subtle: rgba(99,102,241,0.1);
+  --accent-subtle: rgba(99,102,241,0.08);
 
   --green:        #059669;
-  --green-glow:   rgba(5,150,105,0.15);
-  --green-text:   #065f46;
+  --green-glow:   rgba(5,150,105,0.12);
+  --green-text:   #047857;
   --red:          #dc2626;
-  --red-glow:     rgba(220,38,38,0.15);
-  --red-text:     #7f1d1d;
-  --blue-text:    #1d4ed8;
-  --yellow-text:  #92400e;
-  --purple-text:  #5b21b6;
-  --pink-text:    #9d174d;
-  --orange-text:  #9a3412;
-  --teal-text:    #0f766e;
-  --emerald-text: #065f46;
+  --red-glow:     rgba(220,38,38,0.12);
+  --red-text:     #b91c1c;
+  --blue-text:    #2563eb;
+  --yellow-text:  #b45309;
+  --purple-text:  #7c3aed;
+  --pink-text:    #be185d;
+  --orange-text:  #c2410c;
+  --teal-text:    #0d9488;
+  --emerald-text: #047857;
 
-  --shadow-sm:   0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md:   0 4px 16px rgba(0,0,0,0.1);
-  --shadow-lg:   0 8px 32px rgba(0,0,0,0.12);
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:   0 8px 24px rgba(0,0,0,0.1),  0 4px 8px rgba(0,0,0,0.05);
   --shadow-glow: 0 0 24px var(--accent-glow);
 
-  --scrollbar-thumb: #c8cee6;
-  --row-hover:       rgba(0,0,0,0.025);
-  --td-border:       rgba(180,190,220,0.5);
+  --scrollbar-thumb: #d1d5db;
+  --row-hover:       rgba(0,0,0,0.03);
+  --td-border:       rgba(0,0,0,0.06);
 }
 
 html { scroll-behavior: smooth; }
@@ -343,23 +344,81 @@ tbody tr:hover td { background: var(--row-hover); }
 .dot-green { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
 .dot-red   { width: 7px; height: 7px; border-radius: 50%; background: var(--red);   box-shadow: 0 0 6px var(--red); }
 
-/* ── Light mode badge overrides (darker text/border for readability) ── */
-html.light .badge-income   { background: rgba(5,150,105,0.1);   color: #065f46; border-color: rgba(5,150,105,0.35); }
-html.light .badge-expense  { background: rgba(220,38,38,0.1);   color: #7f1d1d; border-color: rgba(220,38,38,0.35); }
-html.light .badge-transfer { background: rgba(29,78,216,0.08);  color: #1e3a8a; border-color: rgba(29,78,216,0.3); }
-html.light .badge-cash     { background: rgba(146,64,14,0.08);  color: #78350f; border-color: rgba(146,64,14,0.3); }
-html.light .badge-bank     { background: rgba(29,78,216,0.08);  color: #1e3a8a; border-color: rgba(29,78,216,0.3); }
-html.light .badge-card     { background: rgba(91,33,182,0.08);  color: #4c1d95; border-color: rgba(91,33,182,0.3); }
-html.light .badge-bkash    { background: rgba(157,23,77,0.08);  color: #831843; border-color: rgba(157,23,77,0.3); }
-html.light .badge-nagad    { background: rgba(154,52,18,0.08);  color: #7c2d12; border-color: rgba(154,52,18,0.3); }
-html.light .badge-rocket   { background: rgba(91,33,182,0.08);  color: #4c1d95; border-color: rgba(91,33,182,0.3); }
-html.light .badge-upay     { background: rgba(15,118,110,0.08); color: #134e4a; border-color: rgba(15,118,110,0.3); }
-html.light .badge-tap      { background: rgba(6,95,70,0.08);    color: #064e3b; border-color: rgba(6,95,70,0.3); }
+/* ── Light mode badge overrides ── */
+html.light .badge-income   { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+html.light .badge-expense  { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+html.light .badge-transfer { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+html.light .badge-cash     { background: #fef9c3; color: #92400e; border-color: #fde047; }
+html.light .badge-bank     { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+html.light .badge-card     { background: #ede9fe; color: #6d28d9; border-color: #c4b5fd; }
+html.light .badge-bkash    { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
+html.light .badge-nagad    { background: #ffedd5; color: #c2410c; border-color: #fdba74; }
+html.light .badge-rocket   { background: #ede9fe; color: #6d28d9; border-color: #c4b5fd; }
+html.light .badge-upay     { background: #ccfbf1; color: #0f766e; border-color: #5eead4; }
+html.light .badge-tap      { background: #d1fae5; color: #047857; border-color: #6ee7b7; }
 
 /* ── Light mode card-glass ── */
 html.light .card-glass {
-  background: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.85);
   border-color: rgba(0,0,0,0.06);
+}
+
+/* ── Light mode card shadow — makes cards lift off the grey base ── */
+html.light .card {
+  box-shadow: var(--shadow-sm);
+}
+html.light .card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Light mode stat card ── */
+html.light .stat-card {
+  box-shadow: var(--shadow-sm);
+}
+html.light .stat-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Light mode input background ── */
+html.light input,
+html.light select,
+html.light textarea {
+  background: #ffffff;
+  border-color: var(--border);
+}
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+}
+
+/* ── Light mode sidebar ── */
+html.light aside {
+  background: #ffffff;
+  border-right-color: var(--border);
+}
+
+/* ── Light mode btn-ghost ── */
+html.light .btn-ghost {
+  background: #f5f6fa;
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+html.light .btn-ghost:hover:not(:disabled) {
+  background: #eaecf4;
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+/* ── Light mode btn-icon ── */
+html.light .btn-icon {
+  background: #f5f6fa;
+  border-color: var(--border);
+}
+html.light .btn-icon:hover:not(:disabled) {
+  background: #eaecf4;
+  color: var(--text-primary);
 }
 
 /* ── Theme transition ── */
