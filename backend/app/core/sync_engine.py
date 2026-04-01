@@ -14,6 +14,7 @@ from app.core.database import AsyncSessionLocal
 from app.core.event_engine import process_event
 from app.modules.accounts.model import Account
 from app.modules.transactions.model import Transaction
+from app.modules.transfers.model import Transfer
 from app.modules.events.model import Event
 from app.schemas.event import EventPayload
 
@@ -91,6 +92,7 @@ async def sync_from_discord():
     async with AsyncSessionLocal() as db:
         # Wipe all state — rebuild from Discord scratch
         await db.execute(delete(Transaction))
+        await db.execute(delete(Transfer))
         await db.execute(delete(Account))
         await db.execute(delete(Event))
         await db.commit()

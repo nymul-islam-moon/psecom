@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.events.model import Event
 from app.modules.accounts.model import Account
 from app.modules.transactions.model import Transaction
+from app.modules.transfers.model import Transfer
 from app.schemas.event import EventPayload
 
 
@@ -64,6 +65,8 @@ async def process_event(
         await _handle_transaction(payload, db)
     elif payload.entity == "account":
         await _handle_account(payload, db)
+    elif payload.entity == "transfer":
+        await _handle_transfer(payload, db)
     else:
         raise ValueError(f"Unknown entity: {payload.entity}")
 
@@ -177,3 +180,88 @@ async def _handle_account(payload: EventPayload, db: AsyncSession):
         account = await db.get(Account, payload.target_id)
         if account:
             account.deleted_at = datetime.utcnow()
+
+
+async def _handle_transfer(payload: EventPayload, db: AsyncSession):
+    import uuid
+    data = payload.data
+
+    if payload.action == "insert":
+        from_account_id = data["from_account_id"]
+        to_account_id = data["to_account_id"]
+        from_amount = float(data["from_amount"])
+        to_amount = float(data["to_amount"])
+        charge = float(data.get("charge", 0))
+        from_currency = data.get("from_currency", "BDT")
+        to_currency = data.get("to_currency", "BDT")
+        note = data.get("note", "")
+        transfer_id = data["id"]
+
+        # Overspend check: sender pays amount + charge
+        total_debit = from_amount + charge
+        balance = await _get_account_balance(from_account_id, db)
+        if total_debit > balance:
+            raise ValueError(
+                f"Insufficient balance: account has {balance:.2f}"
+                f" but transfer needs {total_debit:.2f}"
+                f" ({from_amount:.2f} + {charge:.2f} charge)"
+            )
+
+        debit_txn_id = str(uuid.uuid4())
+        credit_txn_id = str(uuid.uuid4())
+
+        # Debit sender: from_amount + charge
+        db.add(Transaction(
+            id=debit_txn_id,
+            type="transfer",
+            amount=total_debit,
+            currency=from_currency,
+            account_id=from_account_id,
+            category="Transfer Out",
+            note=f"Transfer to {to_account_id[:8]}… | {note}".strip(" |"),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        ))
+
+        # Credit receiver: to_amount
+        db.add(Transaction(
+            id=credit_txn_id,
+            type="income",
+            amount=to_amount,
+            currency=to_currency,
+            account_id=to_account_id,
+            category="Transfer In",
+            note=f"Transfer from {from_account_id[:8]}… | {note}".strip(" |"),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        ))
+
+        db.add(Transfer(
+            id=transfer_id,
+            from_account_id=from_account_id,
+            to_account_id=to_account_id,
+            from_amount=from_amount,
+            from_currency=from_currency,
+            to_amount=to_amount,
+            to_currency=to_currency,
+            charge=charge,
+            note=note,
+            debit_txn_id=debit_txn_id,
+            credit_txn_id=credit_txn_id,
+            created_at=datetime.utcnow(),
+        ))
+
+    elif payload.action == "delete":
+        transfer = await db.get(Transfer, payload.target_id)
+        if transfer and not transfer.deleted_at:
+            # Soft-delete the transfer and reverse both transactions
+            transfer.deleted_at = datetime.utcnow()
+            debit = await db.get(Transaction, transfer.debit_txn_id)
+            credit = await db.get(Transaction, transfer.credit_txn_id)
+            now = datetime.utcnow()
+            if debit:
+                debit.deleted_at = now
+                debit.updated_at = now
+            if credit:
+                credit.deleted_at = now
+                credit.updated_at = now

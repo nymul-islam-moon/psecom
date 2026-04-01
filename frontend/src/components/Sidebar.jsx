@@ -6,6 +6,7 @@ const links = [
   { to: '/transactions', label: 'Transactions',   icon: '⇄' },
   { to: '/accounts',     label: 'Accounts',       icon: '◈' },
   { to: '/analytics',    label: 'Analytics',      icon: '◉' },
+  { to: '/transfers',    label: 'Transfers',      icon: '⇒' },
   { to: '/convert',      label: 'Convert',        icon: '⇌' },
   { to: '/deleted',      label: 'Deleted',        icon: '○' },
   { to: '/discord',      label: 'Discord Schema', icon: '◇' },
