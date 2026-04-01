@@ -1,3 +1,4 @@
+````md
 # Personal Economy
 
 A personal finance tracker built on an **event-sourced architecture** — Discord is the permanent ledger, MySQL is the queryable state, React is the dashboard.
@@ -110,35 +111,98 @@ A personal finance tracker built on an **event-sourced architecture** — Discor
 git clone <repo-url>
 cd personaleconomy
 cp .env.example .env
-```
+````
 
 Open `.env` and fill in:
+
 ```
 DISCORD_TOKEN=your_bot_token_here
 DISCORD_CHANNEL_ID=your_channel_id_here
 ```
 
-### 3. Run with Docker (recommended)
+---
+
+## Docker Usage
+
+All services (Frontend, Backend, MySQL) are managed together using Docker Compose.
+
+The `docker-compose.yml` file is located inside the `docker/` directory.
+
+---
+
+### Start the system (Development Mode)
 
 ```bash
-docker compose -f docker/docker-compose.yml up --build
+cd docker
+docker compose up --build
 ```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8100
-- API docs: http://localhost:8100/docs
+* Runs in foreground (shows logs)
+* Recommended while actively developing and debugging
+* Rebuilds images to apply latest code changes
 
-### 4. Stop
+---
+
+### Start the system (Background / Demo Mode)
 
 ```bash
-docker compose -f docker/docker-compose.yml down
+cd docker
+docker compose up --build -d
 ```
 
-### 5. Full reset (wipe database volumes)
+* Runs in background (detached mode)
+* Recommended when showcasing the project or running normally
+* Terminal remains free
+
+---
+
+### Stop the system
 
 ```bash
-docker compose -f docker/docker-compose.yml down -v
+cd docker
+docker compose down
 ```
+
+* Stops and removes all containers
+* Resets the running environment cleanly
+
+---
+
+### Stop without removing (optional)
+
+```bash
+cd docker
+docker compose stop
+```
+
+* Stops containers but keeps them available for quick restart
+
+Restart later with:
+
+```bash
+cd docker
+docker compose start
+```
+
+---
+
+### Full reset (including volumes)
+
+```bash
+cd docker
+docker compose down -v
+```
+
+* Removes containers and database data (MySQL)
+* Use only when you want a completely fresh start
+
+---
+
+### Notes
+
+* Always use `--build` when code changes to ensure updates are applied
+* All services (React, FastAPI, MySQL) run together — no need to start them separately
+* Use `docker ps` to verify running containers and ports
 
 ---
 
@@ -164,20 +228,20 @@ npm run dev
 
 ## Discord Setup
 
-1. Go to https://discord.com/developers/applications
+1. Go to [https://discord.com/developers/applications](https://discord.com/developers/applications)
 2. Click **New Application** → give it a name
 3. Go to **Bot** tab → click **Add Bot** → copy the **Token** → paste as `DISCORD_TOKEN`
-4. Under **Privileged Gateway Intents** enable **Message Content Intent**
-5. Go to **OAuth2 → URL Generator** → select scopes: `bot` → permissions: `Read Messages`, `Send Messages`, `Read Message History`
-6. Open the generated URL in your browser to invite the bot to your server
-7. In Discord, right-click the channel you want to use → **Copy Channel ID** → paste as `DISCORD_CHANNEL_ID`
-   - (Enable Developer Mode first: User Settings → Advanced → Developer Mode)
+4. Enable **Message Content Intent**
+5. Go to **OAuth2 → URL Generator**
+
+   * Scope: `bot`
+   * Permissions: Read Messages, Send Messages, Read Message History
+6. Invite the bot to your server
+7. Copy channel ID and set as `DISCORD_CHANNEL_ID`
 
 ---
 
 ## How to Post Events via Discord
-
-Paste this JSON in your finance channel. The bot will parse it and update the database automatically.
 
 ### Create a transaction
 
@@ -214,39 +278,33 @@ Paste this JSON in your finance channel. The bot will parse it and update the da
 }
 ```
 
-For `update` and `delete`, add `"target_id": "<existing-id>"` and set `"action"` accordingly.
-
-Use the **Discord Schema** page in the app for a guided template builder.
-
 ---
 
 ## Setting an Opening Balance
 
-Since you likely had money before you started tracking, create an **income** transaction for each account:
+Create an **income** transaction:
 
-- **Type**: `income`
-- **Category**: `Opening Balance`
-- **Amount**: whatever you currently have
-- **Note**: `Initial balance as of [date]`
-
-This is how every professional accounting tool handles this.
+* Type: `income`
+* Category: `Opening Balance`
+* Amount: current balance
+* Note: `Initial balance`
 
 ---
 
 ## API Reference
 
-Full interactive docs available at http://localhost:8100/docs when the backend is running.
+Available at: [http://localhost:8100/docs](http://localhost:8100/docs)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/accounts/` | List all active accounts |
-| GET | `/api/accounts/{id}` | Get account by ID |
-| GET | `/api/accounts/{id}/balance` | Get account balance (income, expense, net) |
-| GET | `/api/transactions/` | List transactions (supports `?type=` and `?category=` filters) |
-| GET | `/api/transactions/deleted` | List soft-deleted transactions |
-| POST | `/api/events/` | Submit an event (insert/update/delete) |
-| POST | `/api/sync/` | Trigger full Discord sync (wipe + rebuild) |
-| POST | `/api/purge/?confirm=true` | Year reset — wipe DB + delete all Discord messages |
+| Method | Endpoint                     | Description          |
+| ------ | ---------------------------- | -------------------- |
+| GET    | `/api/accounts/`             | List accounts        |
+| GET    | `/api/accounts/{id}`         | Get account          |
+| GET    | `/api/accounts/{id}/balance` | Get balance          |
+| GET    | `/api/transactions/`         | List transactions    |
+| GET    | `/api/transactions/deleted`  | Deleted transactions |
+| POST   | `/api/events/`               | Submit event         |
+| POST   | `/api/sync/`                 | Full sync            |
+| POST   | `/api/purge/?confirm=true`   | Year reset           |
 
 ---
 
@@ -255,23 +313,10 @@ Full interactive docs available at http://localhost:8100/docs when the backend i
 ```
 personaleconomy/
 ├── backend/
-│   └── app/
-│       ├── api/            # FastAPI route handlers
-│       ├── core/           # event_engine, sync_engine, database, config
-│       ├── discord_bot/    # bot, parser, handlers, poster
-│       ├── modules/        # SQLAlchemy ORM models (accounts, transactions, events)
-│       └── schemas/        # Pydantic request/response models
 ├── frontend/
-│   └── src/
-│       ├── components/     # Modal, Sidebar, Toast
-│       ├── pages/          # Dashboard, Transactions, Accounts, Analytics, Deleted, DiscordSchema
-│       ├── services/       # api.js (Axios client)
-│       └── utils/          # format.js, uuid.js
 ├── docker/
-│   ├── docker-compose.yml
-│   └── mysql/init.sql
-├── TASKS.md                # Full feature/issue progress tracker
-├── CLAUDE.md               # Architecture guide for AI sessions
+├── TASKS.md
+├── CLAUDE.md
 └── .env.example
 ```
 
@@ -279,13 +324,14 @@ personaleconomy/
 
 ## Git Flow
 
-All changes follow this branching strategy:
-
 ```
-main (production)
- └── develop (integration)
-      ├── feature/feature-name
-      └── fix/issue-name
+main
+ └── develop
+      ├── feature/*
+      └── fix/*
 ```
 
-Every task — no matter how small — gets its own branch, is fixed/built, then merged back into `develop`.
+All work is done via branches and merged into `develop`.
+
+```
+```
