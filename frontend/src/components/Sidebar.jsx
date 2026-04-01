@@ -10,6 +10,7 @@ const links = [
   { to: '/convert',      label: 'Convert',        icon: '⇌' },
   { to: '/deleted',      label: 'Deleted',        icon: '○' },
   { to: '/discord',      label: 'Discord Schema', icon: '◇' },
+  { to: '/docs',         label: 'Docs',           icon: '◻' },
 ]
 
 export default function Sidebar() {

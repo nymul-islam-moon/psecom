@@ -92,8 +92,10 @@ async def _handle_transaction(payload: EventPayload, db: AsyncSession):
         if existing:
             # Was soft-deleted — restore and update fields
             existing.type = data["type"]
+            existing.sub_type = data.get("sub_type")
+            existing.to_recipient = data.get("to_recipient")
             existing.amount = data["amount"]
-            existing.currency = data.get("currency", "USD")
+            existing.currency = data.get("currency", "BDT")
             existing.account_id = data["account_id"]
             existing.category = data.get("category")
             existing.note = data.get("note")
@@ -103,8 +105,10 @@ async def _handle_transaction(payload: EventPayload, db: AsyncSession):
             txn = Transaction(
                 id=data["id"],
                 type=data["type"],
+                sub_type=data.get("sub_type"),
+                to_recipient=data.get("to_recipient"),
                 amount=data["amount"],
-                currency=data.get("currency", "USD"),
+                currency=data.get("currency", "BDT"),
                 account_id=data["account_id"],
                 category=data.get("category"),
                 note=data.get("note"),
@@ -130,7 +134,8 @@ async def _handle_transaction(payload: EventPayload, db: AsyncSession):
                             f"Insufficient balance: account has {balance:.2f} but expense is {new_amount:.2f}"
                         )
                 for field in (
-                    "type", "amount", "currency",
+                    "type", "sub_type", "to_recipient",
+                    "amount", "currency",
                     "account_id", "category", "note"
                 ):
                     if field in data:
