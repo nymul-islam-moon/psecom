@@ -25,6 +25,8 @@ class TransactionUpdate(BaseModel):
 class TransactionResponse(BaseModel):
     id: str
     type: str
+    sub_type: Optional[str]
+    to_recipient: Optional[str]
     amount: float
     currency: str
     account_id: str
