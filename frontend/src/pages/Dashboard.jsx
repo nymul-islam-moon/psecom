@@ -8,8 +8,8 @@ import Toast from '../components/Toast'
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background: '#161b27', border: '1px solid #2a3550', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
-      <div style={{ color: '#8892a4', marginBottom: 6 }}>{label}</div>
+    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
+      <div style={{ color: 'var(--text-secondary)', marginBottom: 6 }}>{label}</div>
       {payload.map(p => (
         <div key={p.name} style={{ color: p.color, fontWeight: 600 }}>
           {p.name}: {formatCurrency(p.value)}
@@ -19,7 +19,6 @@ const CustomTooltip = ({ active, payload, label }) => {
   )
 }
 
-// Group income/expense/balance by currency
 function calcByCurrency(transactions) {
   const map = {}
   transactions.forEach(t => {
@@ -29,10 +28,7 @@ function calcByCurrency(transactions) {
     if (t.type === 'expense') map[cur].expense += parseFloat(t.amount)
   })
   return Object.entries(map).map(([currency, v]) => ({
-    currency,
-    income:  v.income,
-    expense: v.expense,
-    balance: v.income - v.expense,
+    currency, income: v.income, expense: v.expense, balance: v.income - v.expense,
   }))
 }
 
@@ -52,7 +48,6 @@ export default function Dashboard() {
 
   const currencyTotals = calcByCurrency(transactions)
 
-  // Chart: last 14 days (BDT only for chart clarity)
   const byDate = {}
   for (let i = 13; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
@@ -74,29 +69,26 @@ export default function Dashboard() {
       await triggerSync()
       setToast({ message: 'Sync started — refreshing in 3s…', type: 'success' })
       setTimeout(() => load(), 3000)
-    } catch {
-      setToast({ message: 'Sync failed', type: 'error' })
-    } finally { setSyncing(false) }
+    } catch { setToast({ message: 'Sync failed', type: 'error' }) }
+    finally { setSyncing(false) }
   }
 
   const handlePurge = async () => {
-    if (!window.confirm('⚠️ YEAR RESET — This will permanently delete ALL Discord messages and wipe the entire database.\n\nThis CANNOT be undone.\n\nAre you absolutely sure?')) return
+    if (!window.confirm('⚠️ YEAR RESET — Permanently deletes ALL Discord messages and wipes the database.\n\nThis CANNOT be undone. Are you absolutely sure?')) return
     if (!window.confirm('Last chance! Press OK to confirm total reset.')) return
     setPurging(true)
     try {
       await triggerPurge()
       setToast({ message: 'Purge started — all data will be wiped.', type: 'success' })
       setTimeout(() => load(), 3000)
-    } catch (e) {
-      setToast({ message: e.response?.data?.detail || 'Purge failed.', type: 'error' })
-    } finally { setPurging(false) }
+    } catch (e) { setToast({ message: e.response?.data?.detail || 'Purge failed.', type: 'error' }) }
+    finally { setPurging(false) }
   }
 
   const recent = transactions.slice(0, 8)
 
   return (
     <div style={{ animation: 'fadeUp 0.3s ease' }}>
-      {/* Header */}
       <div className="page-header">
         <div>
           <div className="page-title">Dashboard</div>
@@ -110,10 +102,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Per-currency stat cards */}
       {currencyTotals.length === 0 ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
-          {[['Total Income','↑','#6ee7b7'],['Total Expenses','↓','#fca5a5'],['Net Balance','◎','#8892a4']].map(([label, icon, color]) => (
+          {[['Total Income','↑','var(--green-text)'],['Total Expenses','↓','var(--red-text)'],['Net Balance','◎','var(--text-secondary)']].map(([label, icon, color]) => (
             <div key={label} className="stat-card">
               <div className="stat-icon">{icon}</div>
               <div className="stat-label">{label}</div>
@@ -124,42 +115,41 @@ export default function Dashboard() {
       ) : (
         currencyTotals.map(({ currency, income, expense, balance }) => (
           <div key={currency} style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#4a556b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
               {currency} Summary
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
               <div className="stat-card">
                 <div className="stat-icon">↑</div>
                 <div className="stat-label">Income</div>
-                <div className="stat-value" style={{ color: '#6ee7b7' }}>{formatCurrency(income, currency)}</div>
-                <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>
-                  {transactions.filter(t => t.type === 'income' && (t.currency || 'BDT').toUpperCase() === currency).length} transactions
+                <div className="stat-value" style={{ color: 'var(--green-text)' }}>{formatCurrency(income, currency)}</div>
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                  {transactions.filter(t => t.type === 'income' && (t.currency||'BDT').toUpperCase() === currency).length} transactions
                 </div>
               </div>
               <div className="stat-card">
                 <div className="stat-icon">↓</div>
                 <div className="stat-label">Expenses</div>
-                <div className="stat-value" style={{ color: '#fca5a5' }}>{formatCurrency(expense, currency)}</div>
-                <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>
-                  {transactions.filter(t => t.type === 'expense' && (t.currency || 'BDT').toUpperCase() === currency).length} transactions
+                <div className="stat-value" style={{ color: 'var(--red-text)' }}>{formatCurrency(expense, currency)}</div>
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                  {transactions.filter(t => t.type === 'expense' && (t.currency||'BDT').toUpperCase() === currency).length} transactions
                 </div>
               </div>
               <div className="stat-card">
                 <div className="stat-icon">◎</div>
                 <div className="stat-label">Net Balance</div>
-                <div className="stat-value" style={{ color: balance >= 0 ? '#6ee7b7' : '#fca5a5' }}>{formatCurrency(balance, currency)}</div>
-                <div style={{ marginTop: 8, fontSize: 11, color: '#4a556b' }}>{accounts.length} accounts</div>
+                <div className="stat-value" style={{ color: balance >= 0 ? 'var(--green-text)' : 'var(--red-text)' }}>{formatCurrency(balance, currency)}</div>
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>{accounts.length} accounts</div>
               </div>
             </div>
           </div>
         ))
       )}
 
-      {/* Chart + Accounts */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 16 }}>
         <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#f0f4ff' }}>Last 14 Days</div>
-          <div style={{ fontSize: 11, color: '#4a556b', marginBottom: 14 }}>BDT transactions only</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)' }}>Last 14 Days</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 14 }}>BDT transactions only</div>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={chartData} margin={{ top: 0, right: 4, left: -20, bottom: 0 }}>
               <defs>
@@ -172,9 +162,9 @@ export default function Dashboard() {
                   <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1c2333" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#4a556b' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#4a556b' }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="income"  stroke="#10b981" strokeWidth={2} fill="url(#gIncome)"  name="Income" />
               <Area type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2} fill="url(#gExpense)" name="Expense" />
@@ -184,7 +174,7 @@ export default function Dashboard() {
 
         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f0f4ff' }}>Accounts</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Accounts</div>
             <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => navigate('/accounts')}>Manage →</button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -196,22 +186,21 @@ export default function Dashboard() {
               </div>
             )}
             {accounts.map(a => (
-              <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: 9, background: '#0d1117', border: '1px solid #21293d' }}>
+              <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: 9, background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#f0f4ff' }}>{a.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{a.name}</div>
                   <span className={`badge badge-${a.type}`}>{a.type}</span>
                 </div>
-                <div style={{ fontSize: 11, color: '#4a556b' }}>{a.currency}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.currency}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Recent Transactions */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f0f4ff' }}>Recent Transactions</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Recent Transactions</div>
           <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => navigate('/transactions')}>View all →</button>
         </div>
         <table>
@@ -222,12 +211,12 @@ export default function Dashboard() {
             {recent.map(t => (
               <tr key={t.id}>
                 <td><span className={`badge badge-${t.type}`}>{t.type}</span></td>
-                <td style={{ fontWeight: 600, color: t.type === 'income' ? '#6ee7b7' : t.type === 'expense' ? '#fca5a5' : '#93c5fd' }}>
+                <td style={{ fontWeight: 600, color: t.type === 'income' ? 'var(--green-text)' : t.type === 'expense' ? 'var(--red-text)' : 'var(--blue-text)' }}>
                   {formatCurrency(t.amount, t.currency)}
                 </td>
-                <td style={{ color: '#8892a4' }}>{t.category || '—'}</td>
-                <td style={{ color: '#8892a4', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.note || '—'}</td>
-                <td style={{ color: '#4a556b', fontSize: 12 }}>{formatDate(t.created_at)}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>{t.category || '—'}</td>
+                <td style={{ color: 'var(--text-secondary)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.note || '—'}</td>
+                <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{formatDate(t.created_at)}</td>
               </tr>
             ))}
             {recent.length === 0 && (
