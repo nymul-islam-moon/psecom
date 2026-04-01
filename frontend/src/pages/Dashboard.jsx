@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { getTransactions, getAccounts, triggerSync, triggerPurge } from '../services/api'
+import { getTransactions, getAccounts, triggerSync } from '../services/api'
 import { formatCurrency, formatDate, formatShortDate } from '../utils/format'
 import Toast from '../components/Toast'
+import YearEndModal from '../components/YearEndModal'
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
@@ -36,7 +37,7 @@ export default function Dashboard() {
   const [transactions, setTransactions] = useState([])
   const [accounts, setAccounts]         = useState([])
   const [syncing, setSyncing]           = useState(false)
-  const [purging, setPurging]           = useState(false)
+  const [showYearEnd, setShowYearEnd]   = useState(false)
   const [toast, setToast]               = useState(null)
   const navigate = useNavigate()
 
@@ -73,17 +74,6 @@ export default function Dashboard() {
     finally { setSyncing(false) }
   }
 
-  const handlePurge = async () => {
-    if (!window.confirm('⚠️ YEAR RESET — Permanently deletes ALL Discord messages and wipes the database.\n\nThis CANNOT be undone. Are you absolutely sure?')) return
-    if (!window.confirm('Last chance! Press OK to confirm total reset.')) return
-    setPurging(true)
-    try {
-      await triggerPurge()
-      setToast({ message: 'Purge started — all data will be wiped.', type: 'success' })
-      setTimeout(() => load(), 3000)
-    } catch (e) { setToast({ message: e.response?.data?.detail || 'Purge failed.', type: 'error' }) }
-    finally { setPurging(false) }
-  }
 
   const recent = transactions.slice(0, 8)
 
@@ -98,7 +88,7 @@ export default function Dashboard() {
           <button className="btn-primary" onClick={() => navigate('/transactions')}>+ New Transaction</button>
           <button className="btn-ghost" onClick={() => navigate('/convert')} style={{ fontSize: 12 }}>⇌ Convert</button>
           <button className="btn-ghost" onClick={handleSync} disabled={syncing}>{syncing ? '⟳ Syncing…' : '⟳ Sync Discord'}</button>
-          <button className="btn-danger" onClick={handlePurge} disabled={purging} style={{ fontSize: 12 }}>{purging ? 'Purging…' : '⚠ Year Reset'}</button>
+          <button className="btn-danger" onClick={() => setShowYearEnd(true)} style={{ fontSize: 12 }}>⚠ Year Reset</button>
         </div>
       </div>
 
@@ -227,6 +217,16 @@ export default function Dashboard() {
       </div>
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      {showYearEnd && (
+        <YearEndModal
+          onClose={() => setShowYearEnd(false)}
+          onDone={() => {
+            setToast({ message: 'Year-end reset started. Refresh in ~60 seconds.', type: 'success' })
+            setTimeout(() => load(), 60000)
+          }}
+        />
+      )}
     </div>
   )
 }
