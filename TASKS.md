@@ -76,3 +76,13 @@ This file tracks every task ever requested. Checked = done & committed. Unchecke
 - [x] Theme persisted in localStorage (survives page refresh)
 - [x] No flash on reload (theme applied before React mounts in index.html)
 - [x] All CSS variables updated for both modes (badges, buttons, inputs, tables, scrollbar)
+
+## Phase 9 — Data Integrity & Transfer Sync Fix (v1.9.0)
+- [x] Fix: add "transfer" to VALID_ENTITIES in parser.py — transfers were silently rejected during Discord sync (root cause of amount mismatch / missing data after sync)
+- [x] Fix: deterministic uuid5 transaction IDs for transfer debit/credit — previously random uuid4 caused duplicate phantom transactions on every sync replay
+- [x] Fix: atomic sync engine — wipe + replay in single DB transaction; rollback on fatal error so DB is never left in a partially-rebuilt state
+- [x] Fix: handle DuplicateEventError gracefully during sync replay (same event posted twice to Discord is safe to skip)
+- [x] Fix: add delete(Transfer) to purge route — transfers were orphaned after purge
+- [x] Fix: add updated_at column to Transfer model for consistency with Transaction model
+- [x] Docs: update README with full database schema table, transfer event format, version history (v1.0–v1.9)
+- [x] Docs: update TASKS.md with Phase 9
