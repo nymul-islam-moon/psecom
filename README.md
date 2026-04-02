@@ -18,6 +18,7 @@ A personal finance tracker built on an **event-sourced architecture** — Discor
 | v1.7.0  | Currency conversion with charge support |
 | v1.8.0  | Light/dark theme toggle with localStorage persistence |
 | v1.9.0  | **Critical fix** — transfer sync data integrity: transfers now survive sync/rebuild, atomic sync with rollback on failure, deterministic transaction IDs |
+| v2.0.0  | Balance adjustment feature — manually correct account balance via ⚖ button; strict git flow + versioning rules in CLAUDE.md |
 
 ---
 

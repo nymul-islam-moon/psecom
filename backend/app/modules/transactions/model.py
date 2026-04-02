@@ -14,7 +14,7 @@ class Transaction(Base):
     #   borrow   — income you received but owe back (debt tracking)
     #   sent_to  — expense sent to a specific external person/service
     sub_type: Mapped[str | None] = mapped_column(
-        Enum("initial", "borrow", "lent", "sent_to"),
+        Enum("initial", "borrow", "lent", "sent_to", "adjustment"),
         nullable=True, default=None
     )
     # to_recipient: used with sent_to sub_type to name who received the money

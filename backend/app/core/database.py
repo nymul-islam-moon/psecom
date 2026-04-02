@@ -41,6 +41,10 @@ async def init_db():
                ADD COLUMN IF NOT EXISTS updated_at DATETIME
                DEFAULT CURRENT_TIMESTAMP
                ON UPDATE CURRENT_TIMESTAMP""",
+            # v2.0.0 — added 'adjustment' to transactions.sub_type enum
+            """ALTER TABLE transactions
+               MODIFY COLUMN sub_type
+               ENUM('initial','borrow','lent','sent_to','adjustment')""",
         ]
         for sql in migrations:
             try:
