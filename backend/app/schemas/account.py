@@ -6,9 +6,9 @@ from pydantic import BaseModel
 class AccountCreate(BaseModel):
     id: str
     name: str
-    type: str  # cash | bank | card
+    type: str  # cash | bank | card | bkash | nagad | rocket | upay | tap
     parent_id: Optional[str] = None
-    currency: str = "USD"
+    currency: str = "BDT"
     meta: Optional[dict] = None
 
 

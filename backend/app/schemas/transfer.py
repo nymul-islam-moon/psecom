@@ -16,6 +16,7 @@ class TransferResponse(BaseModel):
     debit_txn_id: str
     credit_txn_id: str
     created_at: datetime
+    updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
