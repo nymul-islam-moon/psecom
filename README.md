@@ -1,7 +1,23 @@
-````md
-# Personal Economy
+# Personal Economy — v1.9.0
 
 A personal finance tracker built on an **event-sourced architecture** — Discord is the permanent ledger, MySQL is the queryable state, React is the dashboard.
+
+---
+
+## Version History
+
+| Version | Description |
+|---------|-------------|
+| v1.0.0  | Initial build — event-sourced architecture, Discord bot, MySQL, FastAPI, React |
+| v1.1.0  | Frontend CRUD — dashboard, transactions, accounts, analytics, deleted pages |
+| v1.2.0  | Bangladesh economy support — bKash, Nagad, Rocket, Upay, Tap account types |
+| v1.3.0  | Modern UI redesign — dark theme, sidebar, modals, toasts |
+| v1.4.0  | Account balance & overspend validation |
+| v1.5.0  | Database purge / year reset |
+| v1.6.0  | Multi-currency support (BDT + USD) |
+| v1.7.0  | Currency conversion with charge support |
+| v1.8.0  | Light/dark theme toggle with localStorage persistence |
+| v1.9.0  | **Critical fix** — transfer sync data integrity: transfers now survive sync/rebuild, atomic sync with rollback on failure, deterministic transaction IDs |
 
 ---
 
@@ -12,6 +28,7 @@ A personal finance tracker built on an **event-sourced architecture** — Discor
 - **Event-sourced design** — MySQL database is fully rebuildable by replaying Discord history at any time
 - **Idempotency** — duplicate events (same `event_id`) are silently ignored, making sync safe to run repeatedly
 - **Soft deletes only** — transactions are never hard-deleted; they move to a "Deleted" audit trail and can be restored
+- **Atomic sync** — if a sync fails mid-replay, the database rolls back to its previous state (never left partially-rebuilt)
 
 ### Account Management
 - Create, edit, view, and delete accounts
@@ -27,6 +44,12 @@ A personal finance tracker built on an **event-sourced architecture** — Discor
 - **Overspend protection** — the system rejects an expense if the account does not have sufficient balance
 - Opening balance support — use an `income` transaction with category `Opening Balance`
 
+### Transfer Management
+- Transfer money between two accounts
+- Optional charge/fee (recorded alongside the transfer)
+- Creates debit + credit transactions automatically
+- Transfers survive sync/rebuild correctly (deterministic transaction IDs)
+
 ### Multi-Currency Support
 - BDT (Taka ৳) and USD ($) are fully supported with correct symbols
 - Dashboard totals are grouped **per currency** — BDT and USD shown separately so numbers are never mixed
@@ -37,11 +60,6 @@ A personal finance tracker built on an **event-sourced architecture** — Discor
 - Enter amount, exchange rate, and optional conversion charge
 - Live **preview** shows: amount sent, charge, total deducted, amount received
 - Overspend protection — conversion is blocked if balance is insufficient
-- Conversion records **3 transactions** automatically:
-  1. Expense on source account (amount)
-  2. Income on destination account (converted amount)
-  3. Expense on source account (charge, if any)
-- All 3 are posted to Discord and survive sync
 
 ### Dashboard
 - Summary cards grouped by currency (separate BDT and USD rows)
@@ -71,8 +89,9 @@ A personal finance tracker built on an **event-sourced architecture** — Discor
 - Use this at the start of each year to start fresh
 
 ### Sync
-- **Sync Discord button** — triggers a full rebuild: wipes MySQL state and replays all Discord messages from history
+- **Sync Discord button** — triggers a full atomic rebuild: wipes MySQL state and replays all Discord messages from history
 - All app-side actions (create/edit/delete) are automatically mirrored to Discord so they survive a sync
+- If sync fails, database rolls back — you never lose existing data
 
 ---
 
@@ -99,6 +118,67 @@ A personal finance tracker built on an **event-sourced architecture** — Discor
 
 ---
 
+## Database Schema
+
+### `accounts`
+| Column      | Type           | Description                                      |
+|-------------|----------------|--------------------------------------------------|
+| id          | VARCHAR(64) PK | Unique account ID (user-defined UUID)            |
+| name        | VARCHAR(255)   | Display name                                     |
+| type        | ENUM           | cash / bank / card / bkash / nagad / rocket / upay / tap |
+| parent_id   | VARCHAR(64)    | Parent account ID (for sub-accounts), nullable   |
+| currency    | VARCHAR(10)    | Default: BDT                                     |
+| meta        | JSON           | Extra metadata (nullable)                        |
+| created_at  | DATETIME       | Creation timestamp                               |
+| deleted_at  | DATETIME       | Soft delete timestamp (NULL = active)            |
+
+### `transactions`
+| Column      | Type           | Description                                      |
+|-------------|----------------|--------------------------------------------------|
+| id          | VARCHAR(64) PK | Unique transaction ID                            |
+| type        | ENUM           | income / expense / transfer                      |
+| sub_type    | ENUM           | initial / borrow / lent / sent_to (nullable)     |
+| to_recipient| VARCHAR(255)   | Used with sent_to sub_type (nullable)            |
+| amount      | DECIMAL(12,2)  | Transaction amount                               |
+| currency    | VARCHAR(10)    | BDT / USD etc.                                   |
+| account_id  | VARCHAR(64)    | Which account this belongs to                    |
+| category    | VARCHAR(100)   | Category label (nullable)                        |
+| note        | TEXT           | Free-text note (nullable)                        |
+| created_at  | DATETIME       | Creation timestamp                               |
+| updated_at  | DATETIME       | Last updated timestamp                           |
+| deleted_at  | DATETIME       | Soft delete timestamp (NULL = active)            |
+
+### `transfers`
+| Column          | Type           | Description                                  |
+|-----------------|----------------|----------------------------------------------|
+| id              | VARCHAR(64) PK | Unique transfer ID                           |
+| from_account_id | VARCHAR(64)    | Source account                               |
+| to_account_id   | VARCHAR(64)    | Destination account                          |
+| from_amount     | DECIMAL(12,2)  | Amount debited from source                   |
+| from_currency   | VARCHAR(10)    | Source currency                              |
+| to_amount       | DECIMAL(12,2)  | Amount credited to destination               |
+| to_currency     | VARCHAR(10)    | Destination currency                         |
+| charge          | DECIMAL(12,2)  | Transfer fee (default 0)                     |
+| note            | TEXT           | Free-text note (nullable)                    |
+| debit_txn_id    | VARCHAR(64)    | ID of auto-created debit transaction         |
+| credit_txn_id   | VARCHAR(64)    | ID of auto-created credit transaction        |
+| created_at      | DATETIME       | Creation timestamp                           |
+| updated_at      | DATETIME       | Last updated timestamp                       |
+| deleted_at      | DATETIME       | Soft delete timestamp (NULL = active)        |
+
+### `events`
+| Column     | Type           | Description                                       |
+|------------|----------------|---------------------------------------------------|
+| event_id   | VARCHAR(64) PK | Unique event ID (user-defined UUID)               |
+| source     | ENUM           | discord / app                                     |
+| action     | ENUM           | insert / update / delete                          |
+| entity     | ENUM           | transaction / account / transfer                  |
+| target_id  | VARCHAR(64)    | ID of the record being updated/deleted (nullable) |
+| payload    | JSON           | Full event data as JSON                           |
+| created_at | DATETIME       | When this event was processed                     |
+
+---
+
 ## Getting Started
 
 ### 1. Prerequisites
@@ -111,7 +191,7 @@ A personal finance tracker built on an **event-sourced architecture** — Discor
 git clone <repo-url>
 cd personaleconomy
 cp .env.example .env
-````
+```
 
 Open `.env` and fill in:
 
@@ -128,20 +208,12 @@ All services (Frontend, Backend, MySQL) are managed together using Docker Compos
 
 The `docker-compose.yml` file is located inside the `docker/` directory.
 
----
-
 ### Start the system (Development Mode)
 
 ```bash
 cd docker
 docker compose up --build
 ```
-
-* Runs in foreground (shows logs)
-* Recommended while actively developing and debugging
-* Rebuilds images to apply latest code changes
-
----
 
 ### Start the system (Background / Demo Mode)
 
@@ -150,41 +222,12 @@ cd docker
 docker compose up --build -d
 ```
 
-* Runs in background (detached mode)
-* Recommended when showcasing the project or running normally
-* Terminal remains free
-
----
-
 ### Stop the system
 
 ```bash
 cd docker
 docker compose down
 ```
-
-* Stops and removes all containers
-* Resets the running environment cleanly
-
----
-
-### Stop without removing (optional)
-
-```bash
-cd docker
-docker compose stop
-```
-
-* Stops containers but keeps them available for quick restart
-
-Restart later with:
-
-```bash
-cd docker
-docker compose start
-```
-
----
 
 ### Full reset (including volumes)
 
@@ -193,16 +236,7 @@ cd docker
 docker compose down -v
 ```
 
-* Removes containers and database data (MySQL)
-* Use only when you want a completely fresh start
-
----
-
-### Notes
-
-* Always use `--build` when code changes to ensure updates are applied
-* All services (React, FastAPI, MySQL) run together — no need to start them separately
-* Use `docker ps` to verify running containers and ports
+> Always use `--build` when code changes to ensure updates are applied.
 
 ---
 
@@ -233,9 +267,8 @@ npm run dev
 3. Go to **Bot** tab → click **Add Bot** → copy the **Token** → paste as `DISCORD_TOKEN`
 4. Enable **Message Content Intent**
 5. Go to **OAuth2 → URL Generator**
-
-   * Scope: `bot`
-   * Permissions: Read Messages, Send Messages, Read Message History
+   - Scope: `bot`
+   - Permissions: Read Messages, Send Messages, Read Message History
 6. Invite the bot to your server
 7. Copy channel ID and set as `DISCORD_CHANNEL_ID`
 
@@ -278,16 +311,39 @@ npm run dev
 }
 ```
 
+### Create a transfer between accounts
+
+```json
+{
+  "event_id": "unique-uuid-here",
+  "action": "insert",
+  "entity": "transfer",
+  "data": {
+    "id": "transfer-uuid",
+    "from_account_id": "source-account-id",
+    "to_account_id": "dest-account-id",
+    "from_amount": 500.00,
+    "to_amount": 500.00,
+    "from_currency": "BDT",
+    "to_currency": "BDT",
+    "charge": 5.00,
+    "note": "Wallet top-up"
+  }
+}
+```
+
+> **Note:** `charge` is optional (default 0). Total debited from source = `from_amount + charge`.
+
 ---
 
 ## Setting an Opening Balance
 
 Create an **income** transaction:
 
-* Type: `income`
-* Category: `Opening Balance`
-* Amount: current balance
-* Note: `Initial balance`
+- Type: `income`
+- Category: `Opening Balance`
+- Amount: current balance
+- Note: `Initial balance`
 
 ---
 
@@ -302,9 +358,10 @@ Available at: [http://localhost:8100/docs](http://localhost:8100/docs)
 | GET    | `/api/accounts/{id}/balance` | Get balance          |
 | GET    | `/api/transactions/`         | List transactions    |
 | GET    | `/api/transactions/deleted`  | Deleted transactions |
+| GET    | `/api/transfers/`            | List transfers       |
 | POST   | `/api/events/`               | Submit event         |
 | POST   | `/api/sync/`                 | Full sync            |
-| POST   | `/api/purge/?confirm=true`   | Year reset           |
+| POST   | `/api/purge/?confirm=true`   | Year reset / purge   |
 
 ---
 
@@ -313,7 +370,15 @@ Available at: [http://localhost:8100/docs](http://localhost:8100/docs)
 ```
 personaleconomy/
 ├── backend/
+│   └── app/
+│       ├── core/           # event_engine, sync_engine, database, config
+│       ├── modules/        # SQLAlchemy models (accounts, transactions, transfers, events)
+│       ├── schemas/        # Pydantic request/response models
+│       ├── api/            # FastAPI route handlers
+│       └── discord_bot/    # Discord bot, parser, poster
 ├── frontend/
+│   └── src/
+│       └── pages/          # Dashboard, Transactions, Accounts, Analytics, Deleted, Convert
 ├── docker/
 ├── TASKS.md
 ├── CLAUDE.md
@@ -331,7 +396,9 @@ main
       └── fix/*
 ```
 
-All work is done via branches and merged into `develop`.
+All work is done via branches and merged into `develop`. `main` receives only stable, tested merges from `develop`.
+
+---
 
 ```
 Author: Nymul Islam Moon
