@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.modules.accounts.model import Account
 from app.modules.transactions.model import Transaction
+from app.modules.transfers.model import Transfer
 from app.modules.events.model import Event
 
 logger = logging.getLogger(__name__)
@@ -77,6 +78,7 @@ async def purge_all(
 
     # Wipe DB
     await db.execute(delete(Transaction))
+    await db.execute(delete(Transfer))
     await db.execute(delete(Account))
     await db.execute(delete(Event))
     await db.commit()

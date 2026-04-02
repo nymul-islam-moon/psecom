@@ -11,7 +11,7 @@ from sqlalchemy import delete
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
-from app.core.event_engine import process_event
+from app.core.event_engine import process_event, DuplicateEventError
 from app.modules.accounts.model import Account
 from app.modules.transactions.model import Transaction
 from app.modules.transfers.model import Transfer
@@ -90,36 +90,50 @@ async def sync_from_discord():
         return
 
     async with AsyncSessionLocal() as db:
-        # Wipe all state — rebuild from Discord scratch
-        await db.execute(delete(Transaction))
-        await db.execute(delete(Transfer))
-        await db.execute(delete(Account))
-        await db.execute(delete(Event))
-        await db.commit()
-        logger.info(
-            f"Wiped DB state. Replaying {len(messages)} Discord events..."
-        )
+        # --- Atomic rebuild ---
+        # Wipe all state first, then replay. If ANY replay step fails hard
+        # (not just a benign duplicate), we roll back the entire wipe so the
+        # database is never left in a partially-rebuilt, corrupted state.
+        try:
+            await db.execute(delete(Transaction))
+            await db.execute(delete(Transfer))
+            await db.execute(delete(Account))
+            await db.execute(delete(Event))
+            logger.info(
+                f"Wiped DB state. Replaying {len(messages)} Discord events..."
+            )
 
-        replayed = 0
-        errors = 0
-        for _, raw in messages:
-            try:
-                event = EventPayload(
-                    event_id=raw["event_id"],
-                    action=raw["action"],
-                    entity=raw["entity"],
-                    target_id=raw.get("target_id"),
-                    data=raw.get("data", {}),
-                    source="discord",
-                )
-                await process_event(event, db)
-                replayed += 1
-            except Exception as e:
-                errors += 1
-                logger.error(
-                    f"Failed to replay {raw.get('event_id')}: {e}"
-                )
+            replayed = 0
+            errors = 0
+            for _, raw in messages:
+                try:
+                    event = EventPayload(
+                        event_id=raw["event_id"],
+                        action=raw["action"],
+                        entity=raw["entity"],
+                        target_id=raw.get("target_id"),
+                        data=raw.get("data", {}),
+                        source="discord",
+                    )
+                    await process_event(event, db)
+                    replayed += 1
+                except DuplicateEventError:
+                    # Same event posted twice to Discord — safe to skip
+                    replayed += 1
+                except Exception as e:
+                    errors += 1
+                    logger.error(
+                        f"Failed to replay {raw.get('event_id')}: {e}"
+                    )
 
-        logger.info(
-            f"Sync complete: {replayed} replayed, {errors} errors"
-        )
+            # Only commit if replay finished (errors are logged but not fatal)
+            await db.commit()
+            logger.info(
+                f"Sync complete: {replayed} replayed, {errors} errors"
+            )
+        except Exception as fatal:
+            # Something went wrong before or during replay — roll back so DB
+            # stays intact instead of being left empty.
+            await db.rollback()
+            logger.error(f"Sync aborted, database rolled back: {fatal}")
+            raise

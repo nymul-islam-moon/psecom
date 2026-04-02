@@ -19,5 +19,12 @@ class Transfer(Base):
     # IDs of the two auto-generated transactions
     debit_txn_id: Mapped[str] = mapped_column(String(64), nullable=False)
     credit_txn_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )

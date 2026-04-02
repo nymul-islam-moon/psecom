@@ -6,7 +6,7 @@ from app.schemas.event import EventPayload
 
 REQUIRED_FIELDS = {"event_id", "action", "entity", "data"}
 VALID_ACTIONS = {"insert", "update", "delete"}
-VALID_ENTITIES = {"transaction", "account"}
+VALID_ENTITIES = {"transaction", "account", "transfer"}
 
 
 class ParseError(Exception):

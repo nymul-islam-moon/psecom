@@ -212,8 +212,10 @@ async def _handle_transfer(payload: EventPayload, db: AsyncSession):
                 f" ({from_amount:.2f} + {charge:.2f} charge)"
             )
 
-        debit_txn_id = str(uuid.uuid4())
-        credit_txn_id = str(uuid.uuid4())
+        # Deterministic IDs derived from event_id so re-playing the same event
+        # during sync always produces the same transaction IDs — never duplicates.
+        debit_txn_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{payload.event_id}:debit"))
+        credit_txn_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{payload.event_id}:credit"))
 
         # Debit sender: from_amount + charge
         db.add(Transaction(

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class EventPayload(BaseModel):
     event_id: str
     action: str        # insert | update | delete
-    entity: str        # transaction | account
+    entity: str        # transaction | account | transfer
     target_id: Optional[str] = None
     data: dict[str, Any]
     source: str = "app"  # discord | app
