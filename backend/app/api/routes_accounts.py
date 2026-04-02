@@ -32,6 +32,7 @@ async def get_account(
 
 class BalanceResponse(BaseModel):
     account_id: str
+    currency: str
     balance: float
     income: float
     expense: float
@@ -61,4 +62,10 @@ async def get_account_balance(
     )
     income  = float(income_r.scalar() or 0)
     expense = float(expense_r.scalar() or 0)
-    return BalanceResponse(account_id=account_id, balance=income - expense, income=income, expense=expense)
+    return BalanceResponse(
+        account_id=account_id,
+        currency=account.currency,
+        balance=income - expense,
+        income=income,
+        expense=expense,
+    )

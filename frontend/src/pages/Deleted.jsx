@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getDeletedTransactions, postEvent } from '../services/api'
+import { getDeletedTransactions, getAccounts, postEvent } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/format'
 import { generateId } from '../utils/uuid'
 import Modal from '../components/Modal'
@@ -14,12 +14,16 @@ const DetailRow = ({ label, value }) => (
 
 export default function Deleted() {
   const [transactions, setTransactions] = useState([])
+  const [accounts, setAccounts]         = useState([])
   const [selected, setSelected]         = useState(null)
   const [modal, setModal]               = useState(false)
   const [toast, setToast]               = useState(null)
 
   const load = () => getDeletedTransactions().then(r => setTransactions(r.data))
   useEffect(() => { load() }, [])
+  useEffect(() => { getAccounts().then(r => setAccounts(r.data)) }, [])
+
+  const accountName = (id) => accounts.find(a => a.id === id)?.name || id
 
   const handleRestore = async (t) => {
     if (!confirm(`Restore "${t.note || t.id}"?`)) return
@@ -42,13 +46,14 @@ export default function Deleted() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Type</th><th>Amount</th><th>Category</th><th>Note</th><th>Deleted At</th><th>Actions</th></tr>
+            <tr><th>Type</th><th>Amount</th><th>Account</th><th>Category</th><th>Note</th><th>Deleted At</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {transactions.map(t => (
               <tr key={t.id} style={{ opacity: 0.8 }}>
                 <td><span className={`badge badge-${t.type}`}>{t.type}</span></td>
                 <td style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{formatCurrency(t.amount, t.currency)}</td>
+                <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{accountName(t.account_id)}</td>
                 <td style={{ color: 'var(--text-secondary)' }}>{t.category || '—'}</td>
                 <td style={{ color: 'var(--text-secondary)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.note || '—'}</td>
                 <td style={{ color: 'var(--red-text)', fontSize: 12 }}>{formatDate(t.deleted_at)}</td>
@@ -61,7 +66,7 @@ export default function Deleted() {
               </tr>
             ))}
             {transactions.length === 0 && (
-              <tr><td colSpan={6}><div className="empty-state"><div className="empty-state-icon">○</div>No deleted records</div></td></tr>
+              <tr><td colSpan={7}><div className="empty-state"><div className="empty-state-icon">○</div>No deleted records</div></td></tr>
             )}
           </tbody>
         </table>
@@ -75,6 +80,7 @@ export default function Deleted() {
             </div>
             <DetailRow label="Type"    value={<span className={`badge badge-${selected.type}`}>{selected.type}</span>} />
             <DetailRow label="Amount"  value={<span style={{ fontWeight: 700, color: 'var(--red-text)' }}>{formatCurrency(selected.amount, selected.currency)}</span>} />
+            <DetailRow label="Account" value={accountName(selected.account_id)} />
             <DetailRow label="Category" value={selected.category || '—'} />
             <DetailRow label="Note"    value={selected.note || '—'} />
             <DetailRow label="Created" value={formatDate(selected.created_at)} />

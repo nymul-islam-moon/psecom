@@ -23,8 +23,11 @@ export default function Analytics() {
   const [transactions, setTransactions] = useState([])
   useEffect(() => { getTransactions({ limit: 1000 }).then(r => setTransactions(r.data)) }, [])
 
-  const totalIncome  = transactions.filter(t => t.type==='income').reduce((s,t) => s+parseFloat(t.amount), 0)
-  const totalExpense = transactions.filter(t => t.type==='expense').reduce((s,t) => s+parseFloat(t.amount), 0)
+  // Filter to BDT only so amounts are never mixed across currencies in charts
+  const bdtTxns = transactions.filter(t => (t.currency || 'BDT').toUpperCase() === 'BDT')
+
+  const totalIncome  = bdtTxns.filter(t => t.type==='income').reduce((s,t) => s+parseFloat(t.amount), 0)
+  const totalExpense = bdtTxns.filter(t => t.type==='expense').reduce((s,t) => s+parseFloat(t.amount), 0)
   const savingsRate  = totalIncome > 0 ? ((totalIncome-totalExpense)/totalIncome*100).toFixed(1) : 0
 
   const byDate = {}
@@ -33,7 +36,7 @@ export default function Analytics() {
     const key = d.toISOString().slice(0,10)
     byDate[key] = { date: key, income: 0, expense: 0 }
   }
-  transactions.forEach(t => {
+  bdtTxns.forEach(t => {
     const day = (t.created_at||'').slice(0,10)
     if (byDate[day]) {
       if (t.type==='income')  byDate[day].income  += parseFloat(t.amount)
@@ -42,14 +45,14 @@ export default function Analytics() {
   })
   const timelineData = Object.values(byDate).map(d => ({ ...d, date: formatShortDate(d.date) }))
 
-  const byCategory = transactions.filter(t=>t.type==='expense').reduce((acc,t) => {
+  const byCategory = bdtTxns.filter(t=>t.type==='expense').reduce((acc,t) => {
     const cat = t.category || 'Uncategorized'
     acc[cat] = (acc[cat]||0) + parseFloat(t.amount)
     return acc
   }, {})
   const categoryData = Object.entries(byCategory).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({ name, value }))
 
-  const byMonth = transactions.reduce((acc,t) => {
+  const byMonth = bdtTxns.reduce((acc,t) => {
     const m = (t.created_at||'').slice(0,7)
     if (!acc[m]) acc[m] = { month: m, income: 0, expense: 0 }
     if (t.type==='income')  acc[m].income  += parseFloat(t.amount)
@@ -83,7 +86,7 @@ export default function Analytics() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: 'var(--text-primary)' }}>Cash Flow — Last 30 Days</div>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: 'var(--text-primary)' }}>Cash Flow — Last 30 Days (BDT ৳)</div>
         <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={timelineData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <defs>
@@ -108,7 +111,7 @@ export default function Analytics() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: 'var(--text-primary)' }}>Monthly Comparison</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: 'var(--text-primary)' }}>Monthly Comparison (BDT ৳)</div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={monthlyData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />

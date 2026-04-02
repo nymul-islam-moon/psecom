@@ -65,10 +65,7 @@ export default function Transfers() {
     setLoadingBal(true)
     try {
       const res = await api.get(`/accounts/${id}/balance`)
-      setFromBalance({ balance: res.data.balance, currency: res.data.account_id })
-      // get currency from accounts list
-      const acct = accounts.find(a => a.id === id)
-      setFromBalance({ balance: res.data.balance, currency: acct?.currency || 'BDT' })
+      setFromBalance({ balance: res.data.balance, currency: res.data.currency })
     } catch { setFromBalance(null) }
     finally { setLoadingBal(false) }
   }
