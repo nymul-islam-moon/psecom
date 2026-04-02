@@ -18,22 +18,46 @@ Personal finance tracker using **event-sourced architecture**:
 - Database: MySQL 8.0
 - Infra: Docker, Docker Compose
 
-## Git Flow — ALWAYS follow this
+## Git Flow — MANDATORY (no exceptions)
 
 Branches: `main` (production) → `develop` (integration) → `feature/*` / `fix/*`
 
-**Every single change, no matter how small:**
+**Every single change, no matter how small, MUST follow this flow:**
 ```bash
 git checkout develop
-git checkout -b fix/issue-name        # or feature/feature-name
-# make changes, test
-git add -A && git commit -m "fix: description"
+git checkout -b feature/my-feature    # or fix/issue-name
+# make changes
+git add -A && git commit -m "feat: description"
+git checkout develop && git merge --no-ff feature/my-feature
+git branch -d feature/my-feature
+# then merge develop → main and bump version
+git checkout main && git merge --no-ff develop
+git tag vX.Y.Z
 git checkout develop
-git merge --no-ff fix/issue-name
-git branch -d fix/issue-name
 ```
 
-Never commit directly to `main` or `develop`.
+**Rules Claude must follow:**
+1. NEVER commit directly to `main` or `develop`
+2. EVERY task gets its own `feature/*` or `fix/*` branch
+3. ALWAYS merge into `develop` first, then `main`
+4. ALWAYS bump the version (see Versioning below) on every merge to `main`
+5. Delete the feature/fix branch after merging
+
+## Versioning — MANDATORY
+
+Version format: `MAJOR.MINOR.PATCH`
+- **PATCH** bump: bug fixes, typo corrections, minor UI tweaks
+- **MINOR** bump: new features, new pages, new API endpoints
+- **MAJOR** bump: breaking schema changes, architecture rewrites
+
+Version is tracked in:
+- `frontend/package.json` → `"version"` field
+- `README.md` → version history table
+
+**On every merge to `main`, Claude must:**
+1. Update `frontend/package.json` version
+2. Add a row to the README version history table
+3. Commit as `chore: bump version to vX.Y.Z`
 
 ## Commands
 

@@ -18,6 +18,7 @@ const ACCOUNT_TYPES = [
 ]
 const TYPE_ICONS = { cash:'💵', bank:'🏦', card:'💳', bkash:'📱', nagad:'📱', rocket:'📱', upay:'📱', tap:'📱' }
 const EMPTY_FORM = { name: '', type: 'cash', currency: 'BDT', parent_id: '' }
+const EMPTY_ADJ  = { target_balance: '' }
 
 const DetailRow = ({ label, value }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
@@ -35,6 +36,7 @@ export default function Accounts() {
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
   const [toast, setToast]         = useState(null)
+  const [adjForm, setAdjForm]     = useState(EMPTY_ADJ)
 
   const showToast = (msg, type = 'success') => setToast({ message: msg, type })
 
@@ -50,9 +52,10 @@ export default function Accounts() {
   }
   useEffect(() => { load() }, [])
 
-  const openCreate = () => { setForm(EMPTY_FORM); setSelected(null); setError(''); setModal('create') }
-  const openEdit   = (a)  => { setForm({ name: a.name, type: a.type, currency: a.currency, parent_id: a.parent_id||'' }); setSelected(a); setError(''); setModal('edit') }
-  const openView   = (a)  => { setSelected(a); setModal('view') }
+  const openCreate  = () => { setForm(EMPTY_FORM); setSelected(null); setError(''); setModal('create') }
+  const openEdit    = (a)  => { setForm({ name: a.name, type: a.type, currency: a.currency, parent_id: a.parent_id||'' }); setSelected(a); setError(''); setModal('edit') }
+  const openView    = (a)  => { setSelected(a); setModal('view') }
+  const openAdjust  = (a)  => { setSelected(a); setAdjForm(EMPTY_ADJ); setError(''); setModal('adjust') }
 
   const handleSave = async () => {
     if (!form.name) { setError('Name is required.'); return }
@@ -79,6 +82,39 @@ export default function Accounts() {
       showToast(`Account "${a.name}" deleted.`)
       load()
     } catch (e) { showToast(e.response?.data?.detail || 'Delete failed.', 'error') }
+  }
+
+  const handleAdjust = async () => {
+    const target = parseFloat(adjForm.target_balance)
+    if (isNaN(target)) { setError('Enter a valid target balance.'); return }
+    const current = balances[selected.id]?.balance ?? 0
+    const diff = target - current
+    if (diff === 0) { setError('Balance is already at that amount.'); return }
+    setSaving(true); setError('')
+    try {
+      await postEvent({
+        event_id: generateId(),
+        action: 'insert',
+        entity: 'transaction',
+        source: 'app',
+        data: {
+          id: generateId(),
+          type: diff > 0 ? 'income' : 'expense',
+          sub_type: 'adjustment',
+          amount: Math.abs(diff),
+          currency: selected.currency,
+          account_id: selected.id,
+          category: 'Balance Adjustment',
+          note: `Manual adjustment: ${formatCurrency(current, selected.currency)} → ${formatCurrency(target, selected.currency)}`,
+        },
+      })
+      showToast(`Balance adjusted to ${formatCurrency(target, selected.currency)}`)
+      setModal(null)
+      load()
+    } catch (e) {
+      const msg = e.response?.data?.detail || 'Adjustment failed.'
+      setError(msg); showToast(msg, 'error')
+    } finally { setSaving(false) }
   }
 
   const totalBalance = Object.values(balances).reduce((s, b) => s + (b?.balance||0), 0)
@@ -143,6 +179,7 @@ export default function Accounts() {
               <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
                 <button className="btn-icon" style={{ flex: 1, justifyContent: 'center', fontSize: 12 }} onClick={() => openView(a)}>👁 View</button>
                 <button className="btn-icon" style={{ flex: 1, justifyContent: 'center', fontSize: 12 }} onClick={() => openEdit(a)}>✏️ Edit</button>
+                <button className="btn-icon" style={{ flex: 1, justifyContent: 'center', fontSize: 12, color: 'var(--blue-text)' }} onClick={() => openAdjust(a)}>⚖ Balance</button>
                 <button className="btn-icon" style={{ flex: 1, justifyContent: 'center', fontSize: 12, color: 'var(--red-text)' }} onClick={() => handleDelete(a)}>🗑 Del</button>
               </div>
             </div>
@@ -203,6 +240,45 @@ export default function Accounts() {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
               <button className="btn-ghost" onClick={() => setModal(null)}>Cancel</button>
               <button className="btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'adjust' && selected && (
+        <Modal title={`Adjust Balance — ${selected.name}`} onClose={() => setModal(null)} width={400}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 16px', border: '1px solid var(--border)', fontSize: 13 }}>
+              <div style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Current Balance</div>
+              <div style={{ fontWeight: 700, fontSize: 20, color: (balances[selected.id]?.balance ?? 0) >= 0 ? 'var(--green-text)' : 'var(--red-text)' }}>
+                {formatCurrency(balances[selected.id]?.balance ?? 0, selected.currency)}
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 5, fontWeight: 500 }}>New Target Balance ({selected.currency}) *</label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="e.g. 4010"
+                value={adjForm.target_balance}
+                onChange={e => setAdjForm({ target_balance: e.target.value })}
+                autoFocus
+              />
+            </div>
+            {adjForm.target_balance !== '' && !isNaN(parseFloat(adjForm.target_balance)) && (() => {
+              const current = balances[selected.id]?.balance ?? 0
+              const diff = parseFloat(adjForm.target_balance) - current
+              if (diff === 0) return null
+              return (
+                <div style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, background: diff > 0 ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${diff > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`, color: diff > 0 ? 'var(--green-text)' : 'var(--red-text)' }}>
+                  Will add an <strong>{diff > 0 ? 'income' : 'expense'}</strong> of <strong>{formatCurrency(Math.abs(diff), selected.currency)}</strong> (sub_type: adjustment)
+                </div>
+              )
+            })()}
+            {error && <div style={{ color: 'var(--red-text)', fontSize: 13, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)' }}>{error}</div>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button className="btn-ghost" onClick={() => setModal(null)}>Cancel</button>
+              <button className="btn-primary" onClick={handleAdjust} disabled={saving}>{saving ? 'Saving…' : 'Apply Adjustment'}</button>
             </div>
           </div>
         </Modal>
