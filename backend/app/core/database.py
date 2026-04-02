@@ -28,4 +28,24 @@ async def get_db() -> AsyncSession:
 
 async def init_db():
     async with async_engine.begin() as conn:
+        # Create any tables that don't exist yet
         await conn.run_sync(Base.metadata.create_all)
+
+        # --- Column-level migrations ---
+        # Safely add columns that were added to models after the table was
+        # first created.  Using IF NOT EXISTS (MySQL 8.0+) makes this
+        # idempotent — safe to run on every startup.
+        migrations = [
+            # v1.9.0 — added updated_at to transfers table
+            """ALTER TABLE transfers
+               ADD COLUMN IF NOT EXISTS updated_at DATETIME
+               DEFAULT CURRENT_TIMESTAMP
+               ON UPDATE CURRENT_TIMESTAMP""",
+        ]
+        for sql in migrations:
+            try:
+                await conn.execute(text(sql))
+            except Exception:
+                # If the column already exists or the table doesn't exist yet,
+                # just continue — create_all above handles the latter.
+                pass
