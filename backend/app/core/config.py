@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     # Database
     DB_HOST: str = "mysql"
-    DB_PORT: int = 3307
+    DB_PORT: int = 3306
     DB_NAME: str = "personal_economy"
     DB_USER: str = "root"
     DB_PASSWORD: str = "rootpassword"
